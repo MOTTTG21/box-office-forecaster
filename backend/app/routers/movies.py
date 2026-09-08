@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
+from app.etl.ingest_omdb import ingest_critic_scores
 from app.etl.ingest_tmdb import upsert_movie_from_tmdb
 from app.etl.scrape_boxofficemojo import ingest_lifetime_grosses, ingest_weekly_gross_from_boxofficemojo
 from app.models import Movie
@@ -133,6 +134,7 @@ def get_movie(tmdb_id: int, db: Session = Depends(get_db)) -> MovieDetail:
 
     if movie.status == "released":
         movie = ingest_lifetime_grosses(db, movie)
+    movie = ingest_critic_scores(db, movie)
 
     director = next((c for c in movie.credits if c.role == "director"), None)
     cast = sorted(
@@ -152,6 +154,9 @@ def get_movie(tmdb_id: int, db: Session = Depends(get_db)) -> MovieDetail:
         domestic_gross_usd=movie.domestic_gross_usd,
         worldwide_gross_usd=movie.worldwide_gross_usd,
         profitability_status=compute_profitability_status(movie.budget_usd, movie.worldwide_gross_usd),
+        rotten_tomatoes_score=movie.rotten_tomatoes_score,
+        metascore=movie.metascore,
+        imdb_rating=movie.imdb_rating,
         genres=movie.genres,
         poster_path=movie.poster_path,
         popularity_tmdb_snapshot=movie.popularity_tmdb_snapshot,

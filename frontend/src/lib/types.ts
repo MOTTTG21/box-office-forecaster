@@ -31,6 +31,9 @@ export interface MovieDetail {
   domestic_gross_usd: number | null;
   worldwide_gross_usd: number | null;
   profitability_status: "bomb" | "flop" | "success" | null;
+  rotten_tomatoes_score: number | null;
+  metascore: number | null;
+  imdb_rating: number | null;
   genres: string[] | null;
   poster_path: string | null;
   popularity_tmdb_snapshot: number | null;

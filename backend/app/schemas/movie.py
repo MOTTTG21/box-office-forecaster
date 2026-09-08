@@ -40,6 +40,9 @@ class MovieDetail(BaseModel):
     domestic_gross_usd: int | None = None
     worldwide_gross_usd: int | None = None
     profitability_status: str | None = None
+    rotten_tomatoes_score: int | None = None
+    metascore: int | None = None
+    imdb_rating: float | None = None
     genres: list[str] | None = None
     poster_path: str | None = None
     popularity_tmdb_snapshot: float | None = None

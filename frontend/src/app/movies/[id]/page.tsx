@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { getFranchiseComparison, getMovie, getWeeklyGross, getYearComparison, posterUrl } from "@/lib/api";
 import CompareSection from "@/components/CompareSection";
+import CriticScores from "@/components/CriticScores";
 import ProfitabilityBanner from "@/components/ProfitabilityBanner";
 import WeeklyGrossChart from "@/components/WeeklyGrossChart";
 import { formatUsd } from "@/lib/format";
@@ -84,6 +85,11 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
                 ))}
               </div>
             )}
+            <CriticScores
+              rottenTomatoesScore={movie.rotten_tomatoes_score}
+              metascore={movie.metascore}
+              imdbRating={movie.imdb_rating}
+            />
             {movie.overview && (
               <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">{movie.overview}</p>
             )}
