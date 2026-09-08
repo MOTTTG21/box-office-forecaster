@@ -9,6 +9,7 @@ from app.core.limiter import DEFAULT_RATE_LIMIT, LOOKUP_RATE_LIMIT, SEARCH_RATE_
 from app.etl.ingest_omdb import ingest_critic_scores
 from app.etl.ingest_tmdb import upsert_movie_from_tmdb
 from app.etl.scrape_boxofficemojo import ingest_lifetime_grosses, ingest_weekly_gross_from_boxofficemojo
+from app.ml.decline_model import load_transitions_from_db, predict_next_weekend_gross
 from app.models import Movie
 from app.schemas.movie import (
     ComparisonSeries,
@@ -25,7 +26,7 @@ from app.services.prediction_service import get_or_create_prediction
 from app.services.profitability import compute_profitability_status
 from app.services.tmdb_client import tmdb_client
 
-THIS_WEEK_MAX_RESULTS = 10
+TOP_IN_THEATERS_LIMIT = 10
 MIN_THEATRICAL_RUNTIME_MINUTES = 60
 
 router = APIRouter(prefix="/api/movies", tags=["movies"])
@@ -71,26 +72,25 @@ def browse_movies(request: Request) -> MovieBrowseRows:
     )
 
 
-@router.get("/this-week", response_model=list[ThisWeekMovie])
-@limiter.limit(LOOKUP_RATE_LIMIT)
-def this_week_movies(request: Request, db: Session = Depends(get_db)) -> list[ThisWeekMovie]:
-    today = date.today()
-    window_start, window_end = _current_box_office_week(today)
+def _is_real_theatrical_release(movie: Movie) -> bool:
+    # TMDB's release-type filter still lets through TV specials that got a token
+    # theatrical qualifying run (e.g. a 50-minute streaming special) - these aren't
+    # real wide releases and have no meaningful box office trajectory to predict.
+    return movie.runtime_minutes is None or movie.runtime_minutes >= MIN_THEATRICAL_RUNTIME_MINUTES
 
+
+def _new_release_entries(db: Session, today: date, window_start: date, window_end: date) -> list[ThisWeekMovie]:
     candidates = tmdb_client.discover_movies_by_date_range(window_start.isoformat(), window_end.isoformat())
 
-    in_window = []
+    entries: list[ThisWeekMovie] = []
     for result in candidates:
         release_date_str = result.get("release_date")
         if not release_date_str:
             continue
         release_date = date.fromisoformat(release_date_str)
-        if window_start <= release_date <= window_end:
-            in_window.append(result)
-    in_window = in_window[:THIS_WEEK_MAX_RESULTS]
+        if not (window_start <= release_date <= window_end):
+            continue
 
-    output: list[ThisWeekMovie] = []
-    for result in in_window:
         movie = db.query(Movie).filter(Movie.tmdb_id == result["id"]).one_or_none()
         if movie is None:
             try:
@@ -98,34 +98,101 @@ def this_week_movies(request: Request, db: Session = Depends(get_db)) -> list[Th
             except httpx.HTTPStatusError:
                 continue
 
-        # TMDB's release-type filter still lets through TV specials that got a token
-        # theatrical qualifying run (e.g. a 50-minute streaming special) - these aren't
-        # real wide releases and have no meaningful box office trajectory to predict.
-        if movie.runtime_minutes is not None and movie.runtime_minutes < MIN_THEATRICAL_RUNTIME_MINUTES:
+        if not _is_real_theatrical_release(movie):
             continue
 
         prediction = get_or_create_prediction(db, movie)
 
-        actual_opening = None
+        actual = None
         if movie.release_date and movie.release_date <= today:
             observations = ingest_weekly_gross_from_boxofficemojo(db, movie)
             opening = next((o for o in observations if o.week_number == 1), None)
             if opening:
-                actual_opening = opening.weekend_gross_usd
+                actual = opening.weekend_gross_usd
 
-        output.append(
+        entries.append(
             ThisWeekMovie(
                 tmdb_id=movie.tmdb_id,
                 title=movie.title,
                 release_date=movie.release_date,
                 poster_path=movie.poster_path,
-                predicted_opening_weekend_usd=prediction.predicted_opening_weekend_usd,
-                actual_opening_weekend_usd=actual_opening,
+                is_new_release=True,
+                week_number=1,
+                predicted_weekend_gross_usd=prediction.predicted_opening_weekend_usd,
+                actual_weekend_gross_usd=actual,
+                previous_weekend_gross_usd=None,
             )
         )
+    return entries
 
-    output.sort(key=lambda m: m.release_date or date.max)
-    return output
+
+def _holdover_entries(db: Session, exclude_tmdb_ids: set[int]) -> list[ThisWeekMovie]:
+    now_playing = tmdb_client.get_movie_list("/movie/now_playing")
+    transitions = load_transitions_from_db(db)
+
+    entries: list[ThisWeekMovie] = []
+    for result in now_playing:
+        if result["id"] in exclude_tmdb_ids:
+            continue
+
+        movie = db.query(Movie).filter(Movie.tmdb_id == result["id"]).one_or_none()
+        if movie is None:
+            try:
+                movie = upsert_movie_from_tmdb(db, result["id"])
+            except httpx.HTTPStatusError:
+                continue
+
+        if movie.status != "released" or not _is_real_theatrical_release(movie):
+            continue
+
+        observations = ingest_weekly_gross_from_boxofficemojo(db, movie)
+        if not observations:
+            continue
+        latest = max(observations, key=lambda o: o.week_number)
+        if latest.weekend_gross_usd is None:
+            continue
+
+        target_week = latest.week_number + 1
+        predicted = predict_next_weekend_gross(
+            transitions,
+            exclude_movie_id=movie.id,
+            target_week=target_week,
+            prior_weekend_gross=latest.weekend_gross_usd,
+        )
+        # in case this weekend's real number has already landed by the time this runs
+        actual_row = next((o for o in observations if o.week_number == target_week), None)
+
+        entries.append(
+            ThisWeekMovie(
+                tmdb_id=movie.tmdb_id,
+                title=movie.title,
+                release_date=movie.release_date,
+                poster_path=movie.poster_path,
+                is_new_release=False,
+                week_number=target_week,
+                predicted_weekend_gross_usd=predicted,
+                actual_weekend_gross_usd=actual_row.weekend_gross_usd if actual_row else None,
+                previous_weekend_gross_usd=latest.weekend_gross_usd,
+            )
+        )
+    return entries
+
+
+@router.get("/this-week", response_model=list[ThisWeekMovie])
+@limiter.limit(LOOKUP_RATE_LIMIT)
+def this_week_movies(request: Request, db: Session = Depends(get_db)) -> list[ThisWeekMovie]:
+    """The top 10 highest-grossing films predicted for the current box office weekend - new
+    releases (opening-weekend heuristic) and holdovers (leave-one-out decline model, see
+    backend/app/ml/decline_model.py) ranked together by predicted gross, not just new releases."""
+    today = date.today()
+    window_start, window_end = _current_box_office_week(today)
+
+    new_releases = _new_release_entries(db, today, window_start, window_end)
+    holdovers = _holdover_entries(db, exclude_tmdb_ids={e.tmdb_id for e in new_releases})
+
+    combined = new_releases + holdovers
+    combined.sort(key=lambda e: e.actual_weekend_gross_usd or e.predicted_weekend_gross_usd or 0, reverse=True)
+    return combined[:TOP_IN_THEATERS_LIMIT]
 
 
 @router.get("/{tmdb_id}", response_model=MovieDetail)

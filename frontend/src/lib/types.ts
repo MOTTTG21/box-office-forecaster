@@ -83,8 +83,11 @@ export interface ThisWeekMovie {
   title: string;
   release_date: string | null;
   poster_path: string | null;
-  predicted_opening_weekend_usd: number | null;
-  actual_opening_weekend_usd: number | null;
+  is_new_release: boolean;
+  week_number: number;
+  predicted_weekend_gross_usd: number | null;
+  actual_weekend_gross_usd: number | null;
+  previous_weekend_gross_usd: number | null;
 }
 
 export interface ComparisonPoint {

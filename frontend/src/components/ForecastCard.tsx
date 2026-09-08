@@ -30,14 +30,14 @@ export default function ForecastCard({ movie }: { movie: ThisWeekMovie }) {
   const poster = posterUrl(movie.poster_path, "w185");
   const { weekday, date } = dayLabel(movie.release_date);
 
-  const headline = movie.actual_opening_weekend_usd ?? movie.predicted_opening_weekend_usd;
+  const headline = movie.actual_weekend_gross_usd ?? movie.predicted_weekend_gross_usd;
   const tier = heatTier(headline);
 
-  const hasDelta = movie.actual_opening_weekend_usd != null && movie.predicted_opening_weekend_usd != null;
-  const beatPrediction =
-    hasDelta && movie.actual_opening_weekend_usd! >= movie.predicted_opening_weekend_usd! * 1.05;
-  const missedPrediction =
-    hasDelta && movie.actual_opening_weekend_usd! <= movie.predicted_opening_weekend_usd! * 0.95;
+  const hasDelta = movie.actual_weekend_gross_usd != null && movie.predicted_weekend_gross_usd != null;
+  const beatPrediction = hasDelta && movie.actual_weekend_gross_usd! >= movie.predicted_weekend_gross_usd! * 1.05;
+  const missedPrediction = hasDelta && movie.actual_weekend_gross_usd! <= movie.predicted_weekend_gross_usd! * 0.95;
+
+  const weekendLabel = movie.actual_weekend_gross_usd != null ? "Actual weekend" : "Forecast weekend";
 
   return (
     <Link
@@ -46,7 +46,13 @@ export default function ForecastCard({ movie }: { movie: ThisWeekMovie }) {
     >
       <div className="flex items-center justify-between px-4 pt-3">
         <span className="text-xs font-semibold tracking-wide text-zinc-500 dark:text-zinc-400">
-          {weekday} <span className="font-normal">{date}</span>
+          {movie.is_new_release ? (
+            <>
+              {weekday} <span className="font-normal">{date}</span>
+            </>
+          ) : (
+            `WEEK ${movie.week_number}`
+          )}
         </span>
         <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${tier.chip}`}>
           {tier.label}
@@ -63,7 +69,10 @@ export default function ForecastCard({ movie }: { movie: ThisWeekMovie }) {
             {headline != null ? formatCompactUsd(headline) : "—"}
           </span>
           <span className="text-xs text-zinc-500 dark:text-zinc-400">
-            {movie.actual_opening_weekend_usd != null ? "Actual opening" : "Forecast opening"}
+            {weekendLabel}
+            {!movie.is_new_release && movie.previous_weekend_gross_usd != null && (
+              <> &middot; last wknd {formatCompactUsd(movie.previous_weekend_gross_usd)}</>
+            )}
           </span>
         </div>
       </div>
@@ -80,7 +89,7 @@ export default function ForecastCard({ movie }: { movie: ThisWeekMovie }) {
             }
           >
             {beatPrediction ? "▲" : missedPrediction ? "▼" : "≈"} vs. forecast of{" "}
-            {formatCompactUsd(movie.predicted_opening_weekend_usd!)}
+            {formatCompactUsd(movie.predicted_weekend_gross_usd!)}
           </span>
         </div>
       )}

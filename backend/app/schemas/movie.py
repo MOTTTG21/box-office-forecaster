@@ -70,8 +70,11 @@ class ThisWeekMovie(BaseModel):
     title: str
     release_date: date | None = None
     poster_path: str | None = None
-    predicted_opening_weekend_usd: float | None = None
-    actual_opening_weekend_usd: int | None = None
+    is_new_release: bool
+    week_number: int
+    predicted_weekend_gross_usd: float | None = None
+    actual_weekend_gross_usd: int | None = None
+    previous_weekend_gross_usd: int | None = None
 
 
 class ComparisonPoint(BaseModel):
