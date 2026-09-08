@@ -2,11 +2,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { getMovie, getWeeklyGross, posterUrl } from "@/lib/api";
+import { getFranchiseComparison, getMovie, getWeeklyGross, getYearComparison, posterUrl } from "@/lib/api";
+import CompareSection from "@/components/CompareSection";
 import ProfitabilityBanner from "@/components/ProfitabilityBanner";
 import WeeklyGrossChart from "@/components/WeeklyGrossChart";
 import { formatUsd } from "@/lib/format";
-import { WeeklyGrossPoint } from "@/lib/types";
+import { ComparisonSeries, WeeklyGrossPoint } from "@/lib/types";
 
 export default async function MovieDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -21,11 +22,24 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
 
   const poster = posterUrl(movie.poster_path, "w342");
 
-  let weeklyGross: WeeklyGrossPoint[];
-  try {
-    weeklyGross = await getWeeklyGross(tmdbId);
-  } catch {
-    weeklyGross = [];
+  let weeklyGross: WeeklyGrossPoint[] = [];
+  let franchiseComparison: ComparisonSeries[] = [];
+  let yearComparison: ComparisonSeries[] = [];
+  if (movie.status === "released") {
+    try {
+      weeklyGross = await getWeeklyGross(tmdbId);
+    } catch {
+      weeklyGross = [];
+    }
+    try {
+      [franchiseComparison, yearComparison] = await Promise.all([
+        getFranchiseComparison(tmdbId),
+        getYearComparison(tmdbId),
+      ]);
+    } catch {
+      franchiseComparison = [];
+      yearComparison = [];
+    }
   }
 
   return (
@@ -99,6 +113,10 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
         )}
 
         <WeeklyGrossChart data={weeklyGross} />
+
+        {(franchiseComparison.length > 0 || yearComparison.length > 0) && (
+          <CompareSection franchise={franchiseComparison} year={yearComparison} />
+        )}
 
         <div className="rounded-lg border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
           Gross prediction coming soon.

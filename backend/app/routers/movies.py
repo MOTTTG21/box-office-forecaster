@@ -9,6 +9,7 @@ from app.etl.ingest_tmdb import upsert_movie_from_tmdb
 from app.etl.scrape_boxofficemojo import ingest_lifetime_grosses, ingest_weekly_gross_from_boxofficemojo
 from app.models import Movie
 from app.schemas.movie import (
+    ComparisonSeries,
     MovieBrowseRows,
     MovieDetail,
     MovieSearchResult,
@@ -16,6 +17,7 @@ from app.schemas.movie import (
     ThisWeekMovie,
     WeeklyGrossPoint,
 )
+from app.services.comparison_service import get_franchise_comparison, get_same_year_comparison
 from app.services.prediction_service import get_or_create_prediction
 from app.services.profitability import compute_profitability_status
 from app.services.tmdb_client import tmdb_client
@@ -166,3 +168,27 @@ def get_weekly_gross(tmdb_id: int, db: Session = Depends(get_db)) -> list[Weekly
 
     observations = ingest_weekly_gross_from_boxofficemojo(db, movie)
     return [WeeklyGrossPoint.model_validate(obs) for obs in observations]
+
+
+@router.get("/{tmdb_id}/compare/franchise", response_model=list[ComparisonSeries])
+def compare_franchise(tmdb_id: int, db: Session = Depends(get_db)) -> list[ComparisonSeries]:
+    movie = db.query(Movie).filter(Movie.tmdb_id == tmdb_id).one_or_none()
+    if movie is None:
+        try:
+            movie = upsert_movie_from_tmdb(db, tmdb_id)
+        except httpx.HTTPStatusError:
+            raise HTTPException(status_code=404, detail="Movie not found")
+
+    return get_franchise_comparison(db, movie)
+
+
+@router.get("/{tmdb_id}/compare/year", response_model=list[ComparisonSeries])
+def compare_year(tmdb_id: int, db: Session = Depends(get_db)) -> list[ComparisonSeries]:
+    movie = db.query(Movie).filter(Movie.tmdb_id == tmdb_id).one_or_none()
+    if movie is None:
+        try:
+            movie = upsert_movie_from_tmdb(db, tmdb_id)
+        except httpx.HTTPStatusError:
+            raise HTTPException(status_code=404, detail="Movie not found")
+
+    return get_same_year_comparison(db, movie)

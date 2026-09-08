@@ -55,3 +55,15 @@ export interface ThisWeekMovie {
   predicted_opening_weekend_usd: number | null;
   actual_opening_weekend_usd: number | null;
 }
+
+export interface ComparisonPoint {
+  week_number: number;
+  cumulative_gross_usd: number | null;
+}
+
+export interface ComparisonSeries {
+  tmdb_id: number;
+  title: string;
+  is_current: boolean;
+  points: ComparisonPoint[];
+}

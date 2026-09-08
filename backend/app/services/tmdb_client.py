@@ -33,6 +33,11 @@ class TMDBClient:
         response.raise_for_status()
         return response.json()
 
+    def get_collection(self, collection_id: int) -> dict:
+        response = self._client.get(f"/collection/{collection_id}")
+        response.raise_for_status()
+        return response.json()
+
     def discover_movies_by_date_range(self, start_date: str, end_date: str) -> list[dict]:
         response = self._client.get(
             "/discover/movie",

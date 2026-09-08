@@ -65,3 +65,15 @@ class ThisWeekMovie(BaseModel):
     poster_path: str | None = None
     predicted_opening_weekend_usd: float | None = None
     actual_opening_weekend_usd: int | None = None
+
+
+class ComparisonPoint(BaseModel):
+    week_number: int
+    cumulative_gross_usd: int | None = None
+
+
+class ComparisonSeries(BaseModel):
+    tmdb_id: int
+    title: str
+    is_current: bool
+    points: list[ComparisonPoint]

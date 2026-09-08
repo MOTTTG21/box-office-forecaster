@@ -1,4 +1,4 @@
-import { MovieBrowseRows, MovieDetail, MovieSearchResult, ThisWeekMovie, WeeklyGrossPoint } from "./types";
+import { ComparisonSeries, MovieBrowseRows, MovieDetail, MovieSearchResult, ThisWeekMovie, WeeklyGrossPoint } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -38,6 +38,22 @@ export async function getThisWeek(): Promise<ThisWeekMovie[]> {
   const res = await fetch(`${API_URL}/api/movies/this-week`, { next: { revalidate: 900 } });
   if (!res.ok) {
     throw new Error("Failed to load this week's movies");
+  }
+  return res.json();
+}
+
+export async function getFranchiseComparison(tmdbId: number): Promise<ComparisonSeries[]> {
+  const res = await fetch(`${API_URL}/api/movies/${tmdbId}/compare/franchise`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error("Failed to load franchise comparison");
+  }
+  return res.json();
+}
+
+export async function getYearComparison(tmdbId: number): Promise<ComparisonSeries[]> {
+  const res = await fetch(`${API_URL}/api/movies/${tmdbId}/compare/year`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error("Failed to load year comparison");
   }
   return res.json();
 }
