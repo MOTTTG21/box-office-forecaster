@@ -116,7 +116,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
           </div>
         )}
 
-        <WeeklyGrossChart data={weeklyGross} />
+        <WeeklyGrossChart data={weeklyGross} budgetUsd={movie.budget_usd} />
 
         {(franchiseComparison.length > 0 || yearComparison.length > 0) && (
           <CompareSection franchise={franchiseComparison} year={yearComparison} />
