@@ -24,6 +24,7 @@ from app.schemas.movie import (
 )
 from app.services.comparison_service import get_franchise_comparison, get_same_year_comparison
 from app.services.inflation import LATEST_CPI_YEAR, adjust_for_inflation
+from app.services.news_signal_service import apply_news_adjustment
 from app.services.prediction_service import get_or_create_prediction
 from app.services.prediction_snapshot_service import (
     get_latest_tracked_week,
@@ -114,7 +115,9 @@ def _new_release_entries(db: Session, today: date, window_start: date, window_en
             movie_id=movie.id,
             week_number=1,
             is_new_release=True,
-            compute_prediction=lambda p=prediction: p.predicted_opening_weekend_usd,
+            compute_prediction=lambda p=prediction, m=movie: apply_news_adjustment(
+                p.predicted_opening_weekend_usd, m.title
+            ),
         )
 
         actual = None
@@ -167,14 +170,19 @@ def _holdover_entries(db: Session, exclude_tmdb_ids: set[int]) -> list[ThisWeekM
             continue
 
         target_week = latest.week_number + 1
+
+        def _compute_holdover_prediction(m=movie, tw=target_week, pg=latest.weekend_gross_usd):
+            base = predict_next_weekend_gross(
+                transitions, exclude_movie_id=m.id, target_week=tw, prior_weekend_gross=pg
+            )
+            return apply_news_adjustment(base, m.title)
+
         predicted = get_or_record_snapshot(
             db,
             movie_id=movie.id,
             week_number=target_week,
             is_new_release=False,
-            compute_prediction=lambda m=movie, tw=target_week, pg=latest.weekend_gross_usd: predict_next_weekend_gross(
-                transitions, exclude_movie_id=m.id, target_week=tw, prior_weekend_gross=pg
-            ),
+            compute_prediction=_compute_holdover_prediction,
         )
         # in case this weekend's real number has already landed by the time this runs
         actual_row = next((o for o in observations if o.week_number == target_week), None)
@@ -244,7 +252,9 @@ def get_prediction_history(request: Request, tmdb_id: int, db: Session = Depends
         is_new_release=is_new_release,
         snapshots=[
             PredictionSnapshotPoint(
-                snapshot_date=s.snapshot_date, predicted_weekend_gross_usd=s.predicted_weekend_gross_usd
+                snapshot_date=s.snapshot_date,
+                predicted_weekend_gross_usd=s.predicted_weekend_gross_usd,
+                news_reason=s.news_reason,
             )
             for s in snapshots
         ],

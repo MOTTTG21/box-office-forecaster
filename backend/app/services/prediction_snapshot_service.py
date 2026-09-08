@@ -19,11 +19,13 @@ def get_or_record_snapshot(
     movie_id: int,
     week_number: int,
     is_new_release: bool,
-    compute_prediction: Callable[[], float | None],
+    compute_prediction: Callable[[], tuple[float | None, str | None]],
 ) -> float | None:
     """Returns today's snapshot for (movie_id, week_number) if one already exists; otherwise
-    computes it via `compute_prediction` (only called when needed - it's the expensive path),
-    records it, and returns that value."""
+    computes it via `compute_prediction` (only called when needed - it's the expensive path,
+    which may include a live news-research call), records it, and returns the predicted value.
+    `compute_prediction` returns (predicted_value, news_reason) - the reason is stored but not
+    returned here; read it back via get_snapshot_history for the chart."""
     today = date.today()
     existing = (
         db.query(PredictionSnapshot)
@@ -37,7 +39,7 @@ def get_or_record_snapshot(
     if existing is not None:
         return existing.predicted_weekend_gross_usd
 
-    predicted = compute_prediction()
+    predicted, reason = compute_prediction()
     db.add(
         PredictionSnapshot(
             movie_id=movie_id,
@@ -45,6 +47,7 @@ def get_or_record_snapshot(
             snapshot_date=today,
             is_new_release=is_new_release,
             predicted_weekend_gross_usd=predicted,
+            news_reason=reason,
         )
     )
     db.commit()

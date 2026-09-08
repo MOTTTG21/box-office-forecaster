@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -11,6 +11,10 @@ class PredictionSnapshot(Base):
     """One row per (movie, week being predicted, calendar day) - the day-by-day history behind
     the fluctuating forecast chart. Once a day's snapshot is recorded it's never overwritten,
     so what gets charted for "today" always matches what visitors were actually shown that day.
+
+    predicted_weekend_gross_usd already includes that day's experimental news-buzz adjustment
+    (see app/services/news_signal_service.py) when one was applied; news_reason is the one-
+    sentence reason Claude gave for it, or None on a quiet day / a research failure.
     See app/services/prediction_snapshot_service.py.
     """
 
@@ -23,6 +27,7 @@ class PredictionSnapshot(Base):
     snapshot_date: Mapped[date] = mapped_column(Date, nullable=False)
     is_new_release: Mapped[bool] = mapped_column(Boolean, nullable=False)
     predicted_weekend_gross_usd: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    news_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     movie: Mapped["Movie"] = relationship()
