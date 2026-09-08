@@ -9,7 +9,7 @@ from app.etl.scrape_boxofficemojo import ingest_weekly_gross_from_boxofficemojo
 from app.models import Movie, MovieCredit, ModelRun, Person, Prediction, WeeklyGrossObservation
 from app.services.tmdb_client import tmdb_client
 
-MODEL_VERSION = "baseline-budget-scaled-v1"
+MODEL_VERSION = "baseline-budget-scaled-v1.1"
 DIRECTOR_HISTORY_LIMIT = 5
 
 
@@ -25,12 +25,16 @@ def _get_or_create_model_run(db: Session) -> ModelRun:
         artifact_path="n/a - heuristic, no trained artifact",
         is_active=True,
         notes=(
-            "Baseline v1: predicted opening weekend comes from the director's own prior films "
+            "Baseline v1.1: predicted opening weekend comes from the director's own prior films "
             "(auto-backfilled from Box Office Mojo), or a genre average when that's unavailable - "
-            "but each comp's opening weekend is scaled by this film's budget relative to the comp's "
-            "budget, rather than averaged raw. v0 ignored budget entirely, which produced nonsense "
-            "for directors whose prior films were a very different scale than their new one. Still a "
-            "heuristic, not a trained model."
+            "each comp's opening weekend is scaled by this film's budget relative to the comp's "
+            "budget. When this film's own budget is unknown, the genre fallback returns no "
+            "prediction rather than blending raw dollar figures across genre-mates of unknown, "
+            "possibly very different, scale (genre tags are too broad to trust without a budget "
+            "to normalize against - this produced e.g. a $100M+ prediction for a 50-minute TV "
+            "special with no budget on record). The director fallback still uses raw figures when "
+            "budget is unknown, since it's a tighter, more comparable group. Still a heuristic, "
+            "not a trained model."
         ),
     )
     db.add(model_run)
@@ -105,6 +109,13 @@ def _genre_opening_weekend(
     db: Session, genres: list[str] | None, exclude_movie_id: int, target_budget_usd: int | None
 ) -> float | None:
     if not genres:
+        return None
+    if not target_budget_usd:
+        # Genre tags are broad (a film usually has several) - without a budget to scale
+        # comps against, blending raw dollar figures across genre-mates is too likely to
+        # mix wildly different budget tiers (an indie and a tentpole sharing "Action").
+        # The director comp above is a tighter group and still uses raw figures in this
+        # case; genre is too loose to risk it.
         return None
     rows = (
         db.query(WeeklyGrossObservation.weekend_gross_usd, Movie.budget_usd)

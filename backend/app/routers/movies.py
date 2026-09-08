@@ -25,6 +25,7 @@ from app.services.tmdb_client import tmdb_client
 THIS_WEEK_LOOKAHEAD_DAYS = 14
 THIS_WEEK_LOOKBACK_DAYS = 6
 THIS_WEEK_MAX_RESULTS = 10
+MIN_THEATRICAL_RUNTIME_MINUTES = 60
 
 router = APIRouter(prefix="/api/movies", tags=["movies"])
 
@@ -86,6 +87,12 @@ def this_week_movies(db: Session = Depends(get_db)) -> list[ThisWeekMovie]:
                 movie = upsert_movie_from_tmdb(db, result["id"])
             except httpx.HTTPStatusError:
                 continue
+
+        # TMDB's release-type filter still lets through TV specials that got a token
+        # theatrical qualifying run (e.g. a 50-minute streaming special) - these aren't
+        # real wide releases and have no meaningful box office trajectory to predict.
+        if movie.runtime_minutes is not None and movie.runtime_minutes < MIN_THEATRICAL_RUNTIME_MINUTES:
+            continue
 
         prediction = get_or_create_prediction(db, movie)
 
