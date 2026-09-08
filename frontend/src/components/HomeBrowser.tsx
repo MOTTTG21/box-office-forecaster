@@ -8,8 +8,8 @@ import { MovieBrowseRows, MovieSearchResult } from "@/lib/types";
 import MovieCard from "./MovieCard";
 import MovieRow from "./MovieRow";
 
-const ROW_TITLES: { key: keyof MovieBrowseRows; title: string }[] = [
-  { key: "trending", title: "Trending This Week" },
+const ROW_TITLES: { key: keyof MovieBrowseRows; title: string; autoScroll?: boolean }[] = [
+  { key: "trending", title: "Trending This Week", autoScroll: true },
   { key: "popular", title: "Popular Movies" },
   { key: "top_rated", title: "Top Rated" },
   { key: "upcoming", title: "Coming Soon" },
@@ -86,8 +86,8 @@ export default function HomeBrowser({ rows }: { rows: MovieBrowseRows }) {
         </div>
       ) : (
         <div className="flex flex-col gap-10">
-          {ROW_TITLES.map(({ key, title }) => (
-            <MovieRow key={key} title={title} movies={rows[key]} />
+          {ROW_TITLES.map(({ key, title, autoScroll }) => (
+            <MovieRow key={key} title={title} movies={rows[key]} autoScroll={autoScroll} />
           ))}
         </div>
       )}

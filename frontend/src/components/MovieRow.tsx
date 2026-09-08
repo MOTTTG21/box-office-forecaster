@@ -2,13 +2,25 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { posterUrl } from "@/lib/api";
 import { MovieSearchResult } from "@/lib/types";
 
-export default function MovieRow({ title, movies }: { title: string; movies: MovieSearchResult[] }) {
+const AUTO_SCROLL_INTERVAL_MS = 40;
+const AUTO_SCROLL_PIXELS_PER_TICK = 1;
+
+export default function MovieRow({
+  title,
+  movies,
+  autoScroll = false,
+}: {
+  title: string;
+  movies: MovieSearchResult[];
+  autoScroll?: boolean;
+}) {
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const isPausedRef = useRef(false);
 
   function scrollByAmount(direction: "left" | "right") {
     const el = scrollerRef.current;
@@ -17,13 +29,39 @@ export default function MovieRow({ title, movies }: { title: string; movies: Mov
     el.scrollBy({ left: amount, behavior: "smooth" });
   }
 
+  useEffect(() => {
+    if (!autoScroll) return;
+    const el = scrollerRef.current;
+    if (!el) return;
+
+    const interval = setInterval(() => {
+      if (isPausedRef.current) return;
+      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+      if (atEnd) {
+        el.scrollTo({ left: 0, behavior: "smooth" });
+      } else {
+        el.scrollLeft += AUTO_SCROLL_PIXELS_PER_TICK;
+      }
+    }, AUTO_SCROLL_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [autoScroll]);
+
   if (movies.length === 0) return null;
 
   return (
     <section className="flex flex-col gap-3">
       <h2 className="px-6 text-lg font-semibold text-zinc-900 dark:text-zinc-50 sm:px-0">{title}</h2>
 
-      <div className="group/row relative">
+      <div
+        className="group/row relative"
+        onMouseEnter={() => {
+          isPausedRef.current = true;
+        }}
+        onMouseLeave={() => {
+          isPausedRef.current = false;
+        }}
+      >
         <button
           type="button"
           onClick={() => scrollByAmount("left")}
@@ -37,8 +75,7 @@ export default function MovieRow({ title, movies }: { title: string; movies: Mov
 
         <div
           ref={scrollerRef}
-          className="flex gap-3 overflow-x-auto scroll-smooth px-6 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-0 [&::-webkit-scrollbar]:hidden"
-          style={{ scrollSnapType: "x mandatory" }}
+          className="flex gap-3 overflow-x-auto px-6 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-0 [&::-webkit-scrollbar]:hidden"
         >
           {movies.map((movie) => {
             const poster = posterUrl(movie.poster_path, "w500");
@@ -47,7 +84,6 @@ export default function MovieRow({ title, movies }: { title: string; movies: Mov
                 key={movie.tmdb_id}
                 href={`/movies/${movie.tmdb_id}`}
                 className="group/card relative w-[140px] shrink-0 overflow-hidden rounded-md bg-zinc-200 transition-transform duration-200 ease-out hover:z-10 hover:scale-110 dark:bg-zinc-800 sm:w-[160px]"
-                style={{ scrollSnapAlign: "start" }}
               >
                 <div className="relative aspect-[2/3] w-full">
                   {poster ? (
