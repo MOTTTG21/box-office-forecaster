@@ -20,7 +20,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
     notFound();
   }
 
-  const poster = posterUrl(movie.poster_path, "w342");
+  const poster = posterUrl(movie.poster_path, "original");
 
   let weeklyGross: WeeklyGrossPoint[] = [];
   let franchiseComparison: ComparisonSeries[] = [];
@@ -116,7 +116,12 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
           </div>
         )}
 
-        <WeeklyGrossChart data={weeklyGross} budgetUsd={movie.budget_usd} />
+        <WeeklyGrossChart
+          data={weeklyGross}
+          budgetUsd={movie.budget_usd}
+          domesticGrossUsd={movie.domestic_gross_usd}
+          worldwideGrossUsd={movie.worldwide_gross_usd}
+        />
 
         {(franchiseComparison.length > 0 || yearComparison.length > 0) && (
           <CompareSection franchise={franchiseComparison} year={yearComparison} />

@@ -41,7 +41,7 @@ export default function MovieRow({ title, movies }: { title: string; movies: Mov
           style={{ scrollSnapType: "x mandatory" }}
         >
           {movies.map((movie) => {
-            const poster = posterUrl(movie.poster_path, "w342");
+            const poster = posterUrl(movie.poster_path, "w500");
             return (
               <Link
                 key={movie.tmdb_id}

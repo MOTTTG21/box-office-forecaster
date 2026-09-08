@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import {
   Area,
   AreaChart,
@@ -89,10 +91,18 @@ function ChartTooltip({ active, payload, label, valueLabel, fullData }: ChartToo
 export default function WeeklyGrossChart({
   data,
   budgetUsd,
+  domesticGrossUsd,
+  worldwideGrossUsd,
 }: {
   data: WeeklyGrossPoint[];
   budgetUsd?: number | null;
+  domesticGrossUsd?: number | null;
+  worldwideGrossUsd?: number | null;
 }) {
+  const canEstimateWorldwide =
+    !!domesticGrossUsd && !!worldwideGrossUsd && worldwideGrossUsd > domesticGrossUsd * 1.05;
+  const [territory, setTerritory] = useState<"domestic" | "worldwide">("domestic");
+
   if (data.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
@@ -102,9 +112,56 @@ export default function WeeklyGrossChart({
   }
 
   const interval = tickInterval(data.length);
+  const scaleFactor =
+    territory === "worldwide" && canEstimateWorldwide ? worldwideGrossUsd! / domesticGrossUsd! : 1;
+  const displayData =
+    scaleFactor === 1
+      ? data
+      : data.map((point) => ({
+          ...point,
+          weekend_gross_usd: point.weekend_gross_usd != null ? point.weekend_gross_usd * scaleFactor : null,
+          cumulative_gross_usd: point.cumulative_gross_usd != null ? point.cumulative_gross_usd * scaleFactor : null,
+        }));
+  const valueLabelSuffix = territory === "worldwide" ? " (est. worldwide)" : "";
 
   return (
     <div className="flex flex-col gap-8">
+      {canEstimateWorldwide && (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-zinc-500 dark:text-zinc-400">Territory:</span>
+          <div className="flex gap-1 rounded-md border border-zinc-200 p-0.5 dark:border-zinc-800">
+            <button
+              type="button"
+              onClick={() => setTerritory("domestic")}
+              className={`rounded px-3 py-1 ${
+                territory === "domestic"
+                  ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900"
+                  : "text-zinc-600 dark:text-zinc-400"
+              }`}
+            >
+              Domestic
+            </button>
+            <button
+              type="button"
+              onClick={() => setTerritory("worldwide")}
+              className={`rounded px-3 py-1 ${
+                territory === "worldwide"
+                  ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900"
+                  : "text-zinc-600 dark:text-zinc-400"
+              }`}
+            >
+              Worldwide (estimated)
+            </button>
+          </div>
+          {territory === "worldwide" && (
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              Scales the real domestic weekly shape by this film&apos;s domestic-to-worldwide ratio — not actual
+              weekly international data, which isn&apos;t publicly available.
+            </span>
+          )}
+        </div>
+      )}
+
       <section className={`flex flex-col gap-2 ${CHART_VARS}`}>
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
           <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Weekly Box Office</h2>
@@ -124,7 +181,7 @@ export default function WeeklyGrossChart({
           </div>
         </div>
         <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+          <BarChart data={displayData} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
             <CartesianGrid stroke="var(--grid)" vertical={false} />
             <XAxis
               dataKey="week_number"
@@ -147,15 +204,15 @@ export default function WeeklyGrossChart({
                   active={active}
                   label={label}
                   payload={payload}
-                  valueLabel="Weekend gross"
-                  fullData={data}
+                  valueLabel={`Weekend gross${valueLabelSuffix}`}
+                  fullData={displayData}
                 />
               )}
               cursor={{ fill: "var(--grid)" }}
             />
             <Bar dataKey="weekend_gross_usd" radius={[4, 4, 0, 0]} maxBarSize={24}>
-              {data.map((_, index) => (
-                <Cell key={index} fill={weekOverWeekColor(data, index)} />
+              {displayData.map((_, index) => (
+                <Cell key={index} fill={weekOverWeekColor(displayData, index)} />
               ))}
             </Bar>
           </BarChart>
@@ -165,7 +222,7 @@ export default function WeeklyGrossChart({
       <section className={`flex flex-col gap-2 ${CHART_VARS}`}>
         <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Cumulative Gross</h2>
         <ResponsiveContainer width="100%" height={260}>
-          <AreaChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+          <AreaChart data={displayData} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
             <defs>
               <linearGradient id="cumulativeFill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="var(--series)" stopOpacity={0.1} />
@@ -190,7 +247,12 @@ export default function WeeklyGrossChart({
             />
             <Tooltip
               content={({ active, label, payload }) => (
-                <ChartTooltip active={active} label={label} payload={payload} valueLabel="Cumulative gross" />
+                <ChartTooltip
+                  active={active}
+                  label={label}
+                  payload={payload}
+                  valueLabel={`Cumulative gross${valueLabelSuffix}`}
+                />
               )}
               cursor={{ stroke: "var(--grid)" }}
             />

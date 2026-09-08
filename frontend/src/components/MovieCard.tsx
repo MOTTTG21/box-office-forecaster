@@ -5,7 +5,7 @@ import { posterUrl } from "@/lib/api";
 import { MovieSearchResult } from "@/lib/types";
 
 export default function MovieCard({ movie }: { movie: MovieSearchResult }) {
-  const poster = posterUrl(movie.poster_path, "w185");
+  const poster = posterUrl(movie.poster_path, "w500");
   const year = movie.release_date ? movie.release_date.slice(0, 4) : "TBA";
 
   return (

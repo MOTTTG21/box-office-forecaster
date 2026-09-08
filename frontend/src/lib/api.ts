@@ -58,6 +58,9 @@ export async function getYearComparison(tmdbId: number): Promise<ComparisonSerie
   return res.json();
 }
 
-export function posterUrl(posterPath: string | null, size: "w185" | "w342" | "w500" = "w342"): string | null {
+export function posterUrl(
+  posterPath: string | null,
+  size: "w185" | "w342" | "w500" | "w780" | "original" = "w342",
+): string | null {
   return posterPath ? `https://image.tmdb.org/t/p/${size}${posterPath}` : null;
 }
