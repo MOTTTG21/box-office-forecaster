@@ -95,7 +95,15 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
             )}
             <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
               <dt className="text-zinc-500 dark:text-zinc-400">Budget</dt>
-              <dd className="text-zinc-900 dark:text-zinc-50">{formatUsd(movie.budget_usd)}</dd>
+              <dd className="text-zinc-900 dark:text-zinc-50">
+                {formatUsd(movie.budget_usd)}
+                {movie.budget_usd_inflation_adjusted != null && (
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                    &asymp; {formatUsd(movie.budget_usd_inflation_adjusted)} in {movie.inflation_adjusted_to_year}{" "}
+                    dollars
+                  </div>
+                )}
+              </dd>
               <dt className="text-zinc-500 dark:text-zinc-400">Director</dt>
               <dd className="text-zinc-900 dark:text-zinc-50">
                 {movie.director ? (
@@ -107,9 +115,25 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
                 )}
               </dd>
               <dt className="text-zinc-500 dark:text-zinc-400">Domestic Gross</dt>
-              <dd className="text-zinc-900 dark:text-zinc-50">{formatUsd(movie.domestic_gross_usd)}</dd>
+              <dd className="text-zinc-900 dark:text-zinc-50">
+                {formatUsd(movie.domestic_gross_usd)}
+                {movie.domestic_gross_usd_inflation_adjusted != null && (
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                    &asymp; {formatUsd(movie.domestic_gross_usd_inflation_adjusted)} in{" "}
+                    {movie.inflation_adjusted_to_year} dollars
+                  </div>
+                )}
+              </dd>
               <dt className="text-zinc-500 dark:text-zinc-400">Worldwide Gross</dt>
-              <dd className="text-zinc-900 dark:text-zinc-50">{formatUsd(movie.worldwide_gross_usd)}</dd>
+              <dd className="text-zinc-900 dark:text-zinc-50">
+                {formatUsd(movie.worldwide_gross_usd)}
+                {movie.worldwide_gross_usd_inflation_adjusted != null && (
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                    &asymp; {formatUsd(movie.worldwide_gross_usd_inflation_adjusted)} in{" "}
+                    {movie.inflation_adjusted_to_year} dollars
+                  </div>
+                )}
+              </dd>
             </dl>
           </div>
         </div>

@@ -48,6 +48,10 @@ class MovieDetail(BaseModel):
     popularity_tmdb_snapshot: float | None = None
     director: PersonOut | None = None
     cast: list[PersonOut] = []
+    budget_usd_inflation_adjusted: int | None = None
+    domestic_gross_usd_inflation_adjusted: int | None = None
+    worldwide_gross_usd_inflation_adjusted: int | None = None
+    inflation_adjusted_to_year: int | None = None
 
 
 class WeeklyGrossPoint(BaseModel):

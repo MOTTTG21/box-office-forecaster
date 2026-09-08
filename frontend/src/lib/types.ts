@@ -63,6 +63,10 @@ export interface MovieDetail {
   popularity_tmdb_snapshot: number | null;
   director: Person | null;
   cast: Person[];
+  budget_usd_inflation_adjusted: number | null;
+  domestic_gross_usd_inflation_adjusted: number | null;
+  worldwide_gross_usd_inflation_adjusted: number | null;
+  inflation_adjusted_to_year: number | null;
 }
 
 export interface WeeklyGrossPoint {

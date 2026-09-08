@@ -63,6 +63,19 @@ export default function AboutPage() {
         </section>
 
         <section className="flex flex-col gap-2">
+          <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Inflation-adjusted figures</h2>
+          <p>
+            For any film that wasn&apos;t released this calendar year, budget and gross figures show a second,
+            smaller line converting the dollar amount to today&apos;s dollars — so a 1975 movie&apos;s $9M budget
+            reads alongside what that would cost to make now. The conversion uses the CPI-U (Consumer Price
+            Index for All Urban Consumers), the standard general-purpose inflation measure, not a movie-ticket-
+            specific price index — box office trackers sometimes use the latter, since ticket prices have
+            historically outpaced general inflation, but that series isn&apos;t freely available. It&apos;s a
+            directional &ldquo;what would this be worth today&rdquo; comparison, not a precise one.
+          </p>
+        </section>
+
+        <section className="flex flex-col gap-2">
           <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">What &ldquo;Domestic Gross&rdquo; vs. &ldquo;Worldwide (estimated)&rdquo; means</h2>
           <p>
             Box Office Mojo publishes a real week-by-week breakdown for domestic (U.S./Canada) grosses, but only

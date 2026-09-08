@@ -19,6 +19,7 @@ from app.schemas.movie import (
     WeeklyGrossPoint,
 )
 from app.services.comparison_service import get_franchise_comparison, get_same_year_comparison
+from app.services.inflation import LATEST_CPI_YEAR, adjust_for_inflation
 from app.services.prediction_service import get_or_create_prediction
 from app.services.profitability import compute_profitability_status
 from app.services.tmdb_client import tmdb_client
@@ -142,6 +143,11 @@ def get_movie(tmdb_id: int, db: Session = Depends(get_db)) -> MovieDetail:
         key=lambda c: c.cast_order if c.cast_order is not None else 999,
     )
 
+    # Only worth showing "in today's dollars" for a film that wasn't released this calendar
+    # year - a current-year release's raw figures already are today's dollars.
+    release_year = movie.release_date.year if movie.release_date else None
+    show_inflation_adjusted = release_year is not None and release_year != date.today().year
+
     return MovieDetail(
         id=movie.id,
         tmdb_id=movie.tmdb_id,
@@ -170,6 +176,16 @@ def get_movie(tmdb_id: int, db: Session = Depends(get_db)) -> MovieDetail:
             )
             for c in cast
         ],
+        budget_usd_inflation_adjusted=adjust_for_inflation(movie.budget_usd, release_year)
+        if show_inflation_adjusted
+        else None,
+        domestic_gross_usd_inflation_adjusted=adjust_for_inflation(movie.domestic_gross_usd, release_year)
+        if show_inflation_adjusted
+        else None,
+        worldwide_gross_usd_inflation_adjusted=adjust_for_inflation(movie.worldwide_gross_usd, release_year)
+        if show_inflation_adjusted
+        else None,
+        inflation_adjusted_to_year=LATEST_CPI_YEAR if show_inflation_adjusted else None,
     )
 
 
