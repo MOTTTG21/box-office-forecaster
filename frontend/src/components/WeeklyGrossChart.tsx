@@ -1,17 +1,6 @@
 "use client";
 
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  TooltipProps,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { WeeklyGrossPoint } from "@/lib/types";
 
@@ -40,10 +29,18 @@ function tickInterval(pointCount: number): number {
   return Math.max(0, Math.ceil(pointCount / 10) - 1);
 }
 
-function ChartTooltip({ active, payload, label, valueLabel }: TooltipProps<number, string> & { valueLabel: string }) {
-  if (!active || !payload?.length) return null;
-  const point = payload[0].payload as WeeklyGrossPoint;
-  const value = payload[0].value as number;
+interface ChartTooltipProps {
+  active?: boolean;
+  label?: string | number;
+  payload?: unknown;
+  valueLabel: string;
+}
+
+function ChartTooltip({ active, payload, label, valueLabel }: ChartTooltipProps) {
+  const points = payload as { value?: string | number; payload: WeeklyGrossPoint }[] | undefined;
+  if (!active || !points?.length) return null;
+  const point = points[0].payload;
+  const value = Number(points[0].value);
 
   return (
     <div className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
@@ -92,7 +89,12 @@ export default function WeeklyGrossChart({ data }: { data: WeeklyGrossPoint[] })
               tickLine={false}
               width={56}
             />
-            <Tooltip content={<ChartTooltip valueLabel="Weekend gross" />} cursor={{ fill: "var(--grid)" }} />
+            <Tooltip
+              content={({ active, label, payload }) => (
+                <ChartTooltip active={active} label={label} payload={payload} valueLabel="Weekend gross" />
+              )}
+              cursor={{ fill: "var(--grid)" }}
+            />
             <Bar dataKey="weekend_gross_usd" fill="var(--series)" radius={[4, 4, 0, 0]} maxBarSize={24} />
           </BarChart>
         </ResponsiveContainer>
@@ -124,7 +126,12 @@ export default function WeeklyGrossChart({ data }: { data: WeeklyGrossPoint[] })
               tickLine={false}
               width={56}
             />
-            <Tooltip content={<ChartTooltip valueLabel="Cumulative gross" />} cursor={{ stroke: "var(--grid)" }} />
+            <Tooltip
+              content={({ active, label, payload }) => (
+                <ChartTooltip active={active} label={label} payload={payload} valueLabel="Cumulative gross" />
+              )}
+              cursor={{ stroke: "var(--grid)" }}
+            />
             <Area
               type="monotone"
               dataKey="cumulative_gross_usd"

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { getMovie, getWeeklyGross, posterUrl } from "@/lib/api";
 import WeeklyGrossChart from "@/components/WeeklyGrossChart";
+import { WeeklyGrossPoint } from "@/lib/types";
 
 function formatUsd(amount: number | null): string {
   if (!amount) return "Unknown";
@@ -25,7 +26,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
 
   const poster = posterUrl(movie.poster_path, "w342");
 
-  let weeklyGross;
+  let weeklyGross: WeeklyGrossPoint[];
   try {
     weeklyGross = await getWeeklyGross(tmdbId);
   } catch {
