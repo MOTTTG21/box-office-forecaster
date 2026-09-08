@@ -1,10 +1,11 @@
 from datetime import date, timedelta
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
+from app.core.limiter import LOOKUP_RATE_LIMIT, SEARCH_RATE_LIMIT, limiter
 from app.etl.ingest_omdb import ingest_critic_scores
 from app.etl.ingest_tmdb import upsert_movie_from_tmdb
 from app.etl.scrape_boxofficemojo import ingest_lifetime_grosses, ingest_weekly_gross_from_boxofficemojo
@@ -57,7 +58,8 @@ def _to_search_results(results: list[dict]) -> list[MovieSearchResult]:
 
 
 @router.get("/search", response_model=list[MovieSearchResult])
-def search_movies(q: str) -> list[MovieSearchResult]:
+@limiter.limit(SEARCH_RATE_LIMIT)
+def search_movies(request: Request, q: str) -> list[MovieSearchResult]:
     return _to_search_results(tmdb_client.search_movies(q))
 
 
@@ -125,7 +127,8 @@ def this_week_movies(db: Session = Depends(get_db)) -> list[ThisWeekMovie]:
 
 
 @router.get("/{tmdb_id}", response_model=MovieDetail)
-def get_movie(tmdb_id: int, db: Session = Depends(get_db)) -> MovieDetail:
+@limiter.limit(LOOKUP_RATE_LIMIT)
+def get_movie(request: Request, tmdb_id: int, db: Session = Depends(get_db)) -> MovieDetail:
     movie = db.query(Movie).filter(Movie.tmdb_id == tmdb_id).one_or_none()
     if movie is None:
         try:
@@ -190,7 +193,8 @@ def get_movie(tmdb_id: int, db: Session = Depends(get_db)) -> MovieDetail:
 
 
 @router.get("/{tmdb_id}/weekly-gross", response_model=list[WeeklyGrossPoint])
-def get_weekly_gross(tmdb_id: int, db: Session = Depends(get_db)) -> list[WeeklyGrossPoint]:
+@limiter.limit(LOOKUP_RATE_LIMIT)
+def get_weekly_gross(request: Request, tmdb_id: int, db: Session = Depends(get_db)) -> list[WeeklyGrossPoint]:
     movie = db.query(Movie).filter(Movie.tmdb_id == tmdb_id).one_or_none()
     if movie is None:
         try:
@@ -203,7 +207,8 @@ def get_weekly_gross(tmdb_id: int, db: Session = Depends(get_db)) -> list[Weekly
 
 
 @router.get("/{tmdb_id}/compare/franchise", response_model=list[ComparisonSeries])
-def compare_franchise(tmdb_id: int, db: Session = Depends(get_db)) -> list[ComparisonSeries]:
+@limiter.limit(LOOKUP_RATE_LIMIT)
+def compare_franchise(request: Request, tmdb_id: int, db: Session = Depends(get_db)) -> list[ComparisonSeries]:
     movie = db.query(Movie).filter(Movie.tmdb_id == tmdb_id).one_or_none()
     if movie is None:
         try:
@@ -215,7 +220,8 @@ def compare_franchise(tmdb_id: int, db: Session = Depends(get_db)) -> list[Compa
 
 
 @router.get("/{tmdb_id}/compare/year", response_model=list[ComparisonSeries])
-def compare_year(tmdb_id: int, db: Session = Depends(get_db)) -> list[ComparisonSeries]:
+@limiter.limit(LOOKUP_RATE_LIMIT)
+def compare_year(request: Request, tmdb_id: int, db: Session = Depends(get_db)) -> list[ComparisonSeries]:
     movie = db.query(Movie).filter(Movie.tmdb_id == tmdb_id).one_or_none()
     if movie is None:
         try:

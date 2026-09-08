@@ -1,8 +1,9 @@
 from datetime import date
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
+from app.core.limiter import LOOKUP_RATE_LIMIT, SEARCH_RATE_LIMIT, limiter
 from app.schemas.person import FilmographyItem, PersonDetail, PersonSearchResult
 from app.services.tmdb_client import tmdb_client
 
@@ -48,7 +49,8 @@ def _build_filmography(credits: dict) -> list[FilmographyItem]:
 
 
 @router.get("/search", response_model=list[PersonSearchResult])
-def search_people(q: str) -> list[PersonSearchResult]:
+@limiter.limit(SEARCH_RATE_LIMIT)
+def search_people(request: Request, q: str) -> list[PersonSearchResult]:
     return [
         PersonSearchResult(
             tmdb_id=result["id"],
@@ -62,7 +64,8 @@ def search_people(q: str) -> list[PersonSearchResult]:
 
 
 @router.get("/{tmdb_id}", response_model=PersonDetail)
-def get_person(tmdb_id: int) -> PersonDetail:
+@limiter.limit(LOOKUP_RATE_LIMIT)
+def get_person(request: Request, tmdb_id: int) -> PersonDetail:
     try:
         details = tmdb_client.get_person(tmdb_id)
         credits = tmdb_client.get_person_movie_credits(tmdb_id)

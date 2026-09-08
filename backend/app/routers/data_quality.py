@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
+from app.core.limiter import DATA_QUALITY_RATE_LIMIT, limiter
 from app.schemas.data_quality import DataAnomalyOut
 from app.services.data_quality import refresh_data_anomalies
 
@@ -11,7 +12,8 @@ SEVERITY_RANK = {"high": 0, "medium": 1, "low": 2}
 
 
 @router.get("", response_model=list[DataAnomalyOut])
-def get_data_anomalies(db: Session = Depends(get_db)) -> list[DataAnomalyOut]:
+@limiter.limit(DATA_QUALITY_RATE_LIMIT)
+def get_data_anomalies(request: Request, db: Session = Depends(get_db)) -> list[DataAnomalyOut]:
     rows = refresh_data_anomalies(db)
     rows.sort(key=lambda r: (SEVERITY_RANK.get(r.severity, 99), r.movie.title))
     return [
