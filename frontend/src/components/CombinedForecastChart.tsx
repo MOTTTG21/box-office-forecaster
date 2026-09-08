@@ -134,9 +134,9 @@ export default function CombinedForecastChart({ entries }: { entries: Entry[] })
         </span>
       </div>
       <p className="max-w-2xl text-xs text-zinc-500 dark:text-zinc-400">
-        Each line is one movie&apos;s predicted weekend gross, fluctuating day to day as Claude researches recent
-        news and buzz. Hover a title below to highlight its line. This overlay is exploratory, not a validated
-        accuracy improvement on top of the backtested baseline model.
+        The chart above tracks each film&apos;s <strong>projected amount made during the weekend</strong>, day by
+        day, fluctuating as Claude researches recent news and buzz. Hover a title below to highlight its line. This
+        overlay is exploratory, not a validated accuracy improvement on top of the backtested baseline model.
       </p>
 
       <ResponsiveContainer width="100%" height={320}>
@@ -211,7 +211,12 @@ export default function CombinedForecastChart({ entries }: { entries: Entry[] })
       </ResponsiveContainer>
 
       <div className="flex flex-col gap-1">
-        {entries.map(({ movie }) => {
+        <h3 className="px-2 text-sm font-medium text-zinc-900 dark:text-zinc-50">Projected Rank</h3>
+        <p className="px-2 text-xs text-zinc-500 dark:text-zinc-400">
+          Films ranked by projected box office performance this weekend - not a confirmed final result until the
+          real numbers are reported.
+        </p>
+        {entries.map(({ movie }, index) => {
           const headline = movie.actual_weekend_gross_usd ?? movie.predicted_weekend_gross_usd;
           const tier = heatTier(headline);
           const poster = posterUrl(movie.poster_path, "w185");
@@ -226,6 +231,9 @@ export default function CombinedForecastChart({ entries }: { entries: Entry[] })
                 isHighlighted ? "bg-zinc-100 dark:bg-zinc-800" : ""
               }`}
             >
+              <span className="w-5 shrink-0 text-right text-sm font-semibold tabular-nums text-zinc-400 dark:text-zinc-500">
+                {index + 1}
+              </span>
               <span
                 className="h-2 w-2 shrink-0 rounded-full"
                 style={{ backgroundColor: isHighlighted ? "#2a78d6" : "#c3c2b7" }}
