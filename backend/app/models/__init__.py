@@ -4,6 +4,7 @@ from app.models.model_run import ModelRun
 from app.models.movie import Movie
 from app.models.person import Person
 from app.models.prediction import Prediction
+from app.models.prediction_snapshot import PredictionSnapshot
 from app.models.weekly_gross import WeeklyGrossObservation
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     "MovieCredit",
     "Person",
     "Prediction",
+    "PredictionSnapshot",
     "WeeklyGrossObservation",
 ]

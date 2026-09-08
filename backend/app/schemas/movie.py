@@ -77,6 +77,18 @@ class ThisWeekMovie(BaseModel):
     previous_weekend_gross_usd: int | None = None
 
 
+class PredictionSnapshotPoint(BaseModel):
+    snapshot_date: date
+    predicted_weekend_gross_usd: float | None = None
+
+
+class PredictionHistory(BaseModel):
+    week_number: int
+    is_new_release: bool
+    snapshots: list[PredictionSnapshotPoint]
+    actual_weekend_gross_usd: int | None = None
+
+
 class ComparisonPoint(BaseModel):
     week_number: int
     cumulative_gross_usd: int | None = None

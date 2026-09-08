@@ -10,19 +10,26 @@ from app.etl.ingest_omdb import ingest_critic_scores
 from app.etl.ingest_tmdb import upsert_movie_from_tmdb
 from app.etl.scrape_boxofficemojo import ingest_lifetime_grosses, ingest_weekly_gross_from_boxofficemojo
 from app.ml.decline_model import load_transitions_from_db, predict_next_weekend_gross
-from app.models import Movie
+from app.models import Movie, WeeklyGrossObservation
 from app.schemas.movie import (
     ComparisonSeries,
     MovieBrowseRows,
     MovieDetail,
     MovieSearchResult,
     PersonOut,
+    PredictionHistory,
+    PredictionSnapshotPoint,
     ThisWeekMovie,
     WeeklyGrossPoint,
 )
 from app.services.comparison_service import get_franchise_comparison, get_same_year_comparison
 from app.services.inflation import LATEST_CPI_YEAR, adjust_for_inflation
 from app.services.prediction_service import get_or_create_prediction
+from app.services.prediction_snapshot_service import (
+    get_latest_tracked_week,
+    get_or_record_snapshot,
+    get_snapshot_history,
+)
 from app.services.profitability import compute_profitability_status
 from app.services.tmdb_client import tmdb_client
 
@@ -102,6 +109,13 @@ def _new_release_entries(db: Session, today: date, window_start: date, window_en
             continue
 
         prediction = get_or_create_prediction(db, movie)
+        predicted = get_or_record_snapshot(
+            db,
+            movie_id=movie.id,
+            week_number=1,
+            is_new_release=True,
+            compute_prediction=lambda p=prediction: p.predicted_opening_weekend_usd,
+        )
 
         actual = None
         if movie.release_date and movie.release_date <= today:
@@ -118,7 +132,7 @@ def _new_release_entries(db: Session, today: date, window_start: date, window_en
                 poster_path=movie.poster_path,
                 is_new_release=True,
                 week_number=1,
-                predicted_weekend_gross_usd=prediction.predicted_opening_weekend_usd,
+                predicted_weekend_gross_usd=predicted,
                 actual_weekend_gross_usd=actual,
                 previous_weekend_gross_usd=None,
             )
@@ -153,11 +167,14 @@ def _holdover_entries(db: Session, exclude_tmdb_ids: set[int]) -> list[ThisWeekM
             continue
 
         target_week = latest.week_number + 1
-        predicted = predict_next_weekend_gross(
-            transitions,
-            exclude_movie_id=movie.id,
-            target_week=target_week,
-            prior_weekend_gross=latest.weekend_gross_usd,
+        predicted = get_or_record_snapshot(
+            db,
+            movie_id=movie.id,
+            week_number=target_week,
+            is_new_release=False,
+            compute_prediction=lambda m=movie, tw=target_week, pg=latest.weekend_gross_usd: predict_next_weekend_gross(
+                transitions, exclude_movie_id=m.id, target_week=tw, prior_weekend_gross=pg
+            ),
         )
         # in case this weekend's real number has already landed by the time this runs
         actual_row = next((o for o in observations if o.week_number == target_week), None)
@@ -193,6 +210,46 @@ def this_week_movies(request: Request, db: Session = Depends(get_db)) -> list[Th
     combined = new_releases + holdovers
     combined.sort(key=lambda e: e.actual_weekend_gross_usd or e.predicted_weekend_gross_usd or 0, reverse=True)
     return combined[:TOP_IN_THEATERS_LIMIT]
+
+
+@router.get("/{tmdb_id}/prediction-history", response_model=PredictionHistory | None)
+@limiter.limit(LOOKUP_RATE_LIMIT)
+def get_prediction_history(request: Request, tmdb_id: int, db: Session = Depends(get_db)) -> PredictionHistory | None:
+    """The day-by-day snapshot history for whichever week this movie is currently (or was most
+    recently) being tracked for, plus the real actual once it's known - the fluctuating forecast
+    chart's data source. None if this movie has never been tracked in the Top 10 list."""
+    movie = db.query(Movie).filter(Movie.tmdb_id == tmdb_id).one_or_none()
+    if movie is None:
+        return None
+
+    week_number = get_latest_tracked_week(db, movie.id)
+    if week_number is None:
+        return None
+
+    snapshots = get_snapshot_history(db, movie.id, week_number)
+    is_new_release = snapshots[0].is_new_release if snapshots else True
+
+    actual_row = (
+        db.query(WeeklyGrossObservation)
+        .filter(
+            WeeklyGrossObservation.movie_id == movie.id,
+            WeeklyGrossObservation.week_number == week_number,
+            WeeklyGrossObservation.territory == "domestic",
+        )
+        .one_or_none()
+    )
+
+    return PredictionHistory(
+        week_number=week_number,
+        is_new_release=is_new_release,
+        snapshots=[
+            PredictionSnapshotPoint(
+                snapshot_date=s.snapshot_date, predicted_weekend_gross_usd=s.predicted_weekend_gross_usd
+            )
+            for s in snapshots
+        ],
+        actual_weekend_gross_usd=actual_row.weekend_gross_usd if actual_row else None,
+    )
 
 
 @router.get("/{tmdb_id}", response_model=MovieDetail)
