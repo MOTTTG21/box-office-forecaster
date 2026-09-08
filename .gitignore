@@ -16,6 +16,9 @@ frontend/.next/
 frontend/out/
 npm-debug.log*
 
+# Vercel
+.vercel
+
 # OS
 .DS_Store
 
