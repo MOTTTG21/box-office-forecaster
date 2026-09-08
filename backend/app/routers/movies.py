@@ -5,15 +5,20 @@ from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.etl.ingest_tmdb import upsert_movie_from_tmdb
 from app.models import Movie
-from app.schemas.movie import MovieDetail, MovieSearchResult, PersonOut
+from app.schemas.movie import MovieBrowseRows, MovieDetail, MovieSearchResult, PersonOut
 from app.services.tmdb_client import tmdb_client
 
 router = APIRouter(prefix="/api/movies", tags=["movies"])
 
+BROWSE_ROW_PATHS = {
+    "trending": "/trending/movie/week",
+    "popular": "/movie/popular",
+    "top_rated": "/movie/top_rated",
+    "upcoming": "/movie/upcoming",
+}
 
-@router.get("/search", response_model=list[MovieSearchResult])
-def search_movies(q: str) -> list[MovieSearchResult]:
-    results = tmdb_client.search_movies(q)
+
+def _to_search_results(results: list[dict]) -> list[MovieSearchResult]:
     return [
         MovieSearchResult(
             tmdb_id=result["id"],
@@ -23,6 +28,18 @@ def search_movies(q: str) -> list[MovieSearchResult]:
         )
         for result in results
     ]
+
+
+@router.get("/search", response_model=list[MovieSearchResult])
+def search_movies(q: str) -> list[MovieSearchResult]:
+    return _to_search_results(tmdb_client.search_movies(q))
+
+
+@router.get("/browse", response_model=MovieBrowseRows)
+def browse_movies() -> MovieBrowseRows:
+    return MovieBrowseRows(
+        **{row: _to_search_results(tmdb_client.get_movie_list(path)) for row, path in BROWSE_ROW_PATHS.items()}
+    )
 
 
 @router.get("/{tmdb_id}", response_model=MovieDetail)

@@ -5,6 +5,13 @@ export interface MovieSearchResult {
   poster_path: string | null;
 }
 
+export interface MovieBrowseRows {
+  trending: MovieSearchResult[];
+  popular: MovieSearchResult[];
+  top_rated: MovieSearchResult[];
+  upcoming: MovieSearchResult[];
+}
+
 export interface Person {
   id: number;
   tmdb_id: number;

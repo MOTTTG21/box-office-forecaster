@@ -1,4 +1,4 @@
-import { MovieDetail, MovieSearchResult } from "./types";
+import { MovieBrowseRows, MovieDetail, MovieSearchResult } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -6,6 +6,14 @@ export async function searchMovies(query: string): Promise<MovieSearchResult[]> 
   const res = await fetch(`${API_URL}/api/movies/search?q=${encodeURIComponent(query)}`);
   if (!res.ok) {
     throw new Error("Search request failed");
+  }
+  return res.json();
+}
+
+export async function getBrowseRows(): Promise<MovieBrowseRows> {
+  const res = await fetch(`${API_URL}/api/movies/browse`, { next: { revalidate: 3600 } });
+  if (!res.ok) {
+    throw new Error("Failed to load browse rows");
   }
   return res.json();
 }

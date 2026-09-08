@@ -18,6 +18,11 @@ class TMDBClient:
         response.raise_for_status()
         return response.json()["results"]
 
+    def get_movie_list(self, path: str) -> list[dict]:
+        response = self._client.get(path)
+        response.raise_for_status()
+        return response.json()["results"]
+
     def get_movie_with_credits(self, tmdb_id: int) -> dict:
         response = self._client.get(f"/movie/{tmdb_id}", params={"append_to_response": "credits"})
         response.raise_for_status()

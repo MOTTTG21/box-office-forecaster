@@ -10,6 +10,13 @@ class MovieSearchResult(BaseModel):
     poster_path: str | None = None
 
 
+class MovieBrowseRows(BaseModel):
+    trending: list[MovieSearchResult]
+    popular: list[MovieSearchResult]
+    top_rated: list[MovieSearchResult]
+    upcoming: list[MovieSearchResult]
+
+
 class PersonOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
