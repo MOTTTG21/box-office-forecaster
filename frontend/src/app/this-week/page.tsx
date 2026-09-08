@@ -12,8 +12,10 @@ export default async function ThisWeekPage() {
             This Week in Box Office
           </h1>
           <p className="max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
-            Domestic opening weekend forecast for movies releasing this week and next. Early baseline model
-            &mdash; predictions come from director/genre historical averages and will get sharper over time.
+            Domestic opening weekend forecast for movies releasing this box office week (Monday&ndash;Sunday).
+            Predictions refresh daily. Early baseline model &mdash; a prediction only shows once we have real
+            budget data to compare against, so &ldquo;not enough data&rdquo; is expected and will fill in as
+            that data becomes available.
           </p>
         </div>
 

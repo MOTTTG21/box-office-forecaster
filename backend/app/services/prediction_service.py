@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import datetime, timedelta, timezone
 
 import httpx
 from sqlalchemy import func
@@ -9,8 +9,9 @@ from app.etl.scrape_boxofficemojo import ingest_weekly_gross_from_boxofficemojo
 from app.models import Movie, MovieCredit, ModelRun, Person, Prediction, WeeklyGrossObservation
 from app.services.tmdb_client import tmdb_client
 
-MODEL_VERSION = "baseline-budget-scaled-v1.1"
+MODEL_VERSION = "baseline-budget-scaled-v1.2"
 DIRECTOR_HISTORY_LIMIT = 5
+PREDICTION_REFRESH_INTERVAL = timedelta(hours=24)
 
 
 def _get_or_create_model_run(db: Session) -> ModelRun:
@@ -25,16 +26,16 @@ def _get_or_create_model_run(db: Session) -> ModelRun:
         artifact_path="n/a - heuristic, no trained artifact",
         is_active=True,
         notes=(
-            "Baseline v1.1: predicted opening weekend comes from the director's own prior films "
-            "(auto-backfilled from Box Office Mojo), or a genre average when that's unavailable - "
-            "each comp's opening weekend is scaled by this film's budget relative to the comp's "
-            "budget. When this film's own budget is unknown, the genre fallback returns no "
-            "prediction rather than blending raw dollar figures across genre-mates of unknown, "
-            "possibly very different, scale (genre tags are too broad to trust without a budget "
-            "to normalize against - this produced e.g. a $100M+ prediction for a 50-minute TV "
-            "special with no budget on record). The director fallback still uses raw figures when "
-            "budget is unknown, since it's a tighter, more comparable group. Still a heuristic, "
-            "not a trained model."
+            "Baseline v1.2: predicted opening weekend comes from the director's own prior films "
+            "(auto-backfilled from Box Office Mojo), or a genre average when that's unavailable. "
+            "Requires BOTH this film's budget and a comp's budget to be known before using that "
+            "comp - each usable comp's opening weekend is scaled by target_budget/comp_budget. "
+            "No unscaled/raw fallback: 'same director' or 'same genre' doesn't guarantee similar "
+            "scale (a director's career can span arthouse dramas and studio tentpoles; genre tags "
+            "are broad), and blending raw dollar figures across mismatched scales produced real "
+            "nonsense (a $100M+ guess for a 50-minute TV special, a ~$50K guess for a major studio "
+            "sequel). No usable comps means no prediction - honest 'not enough data' over a "
+            "confident wrong number. Still a heuristic, not a trained model."
         ),
     )
     db.add(model_run)
@@ -69,26 +70,26 @@ def _backfill_director_history(db: Session, director: Person, exclude_tmdb_id: i
 
 
 def _budget_scaled_average(rows: list[tuple[int | None, int | None]], target_budget_usd: int | None) -> float | None:
-    """Average opening weekends across comps, scaling each by target_budget/comp_budget. When we know
-    our own budget, a comp with no budget on record is dropped rather than averaged in raw - mixing a
-    known-scale target with an unknown-scale comp is exactly what produced nonsense in v0 (a $30M
-    movie inheriting a $65K limited-release comp's raw number). Raw comps are only used as a last
-    resort when we don't know the target's budget either, so scaling isn't possible either way."""
-    estimates = []
-    for weekend_gross_usd, comp_budget_usd in rows:
-        if weekend_gross_usd is None:
-            continue
-        if target_budget_usd and comp_budget_usd:
-            estimates.append(weekend_gross_usd * (target_budget_usd / comp_budget_usd))
-        elif not target_budget_usd:
-            estimates.append(weekend_gross_usd)
-
+    """Average opening weekends across comps, scaling each by target_budget/comp_budget - only when
+    BOTH budgets are known. A "same director" or "same genre" comp is no guarantee of similar scale
+    (a director's career can span arthouse dramas and studio franchise films; a genre tag is broad),
+    so an unscaled comp is dropped rather than blended in raw. This produced real nonsense before:
+    a director whose only real comp was a Netflix original's token theatrical run predicted a
+    Sandra Bullock/Nicole Kidman franchise sequel's opening at ~$50K. No usable comps means no
+    prediction - honest "not enough data" beats a confident wrong number."""
+    estimates = [
+        weekend_gross_usd * (target_budget_usd / comp_budget_usd)
+        for weekend_gross_usd, comp_budget_usd in rows
+        if weekend_gross_usd is not None and target_budget_usd and comp_budget_usd
+    ]
     return sum(estimates) / len(estimates) if estimates else None
 
 
 def _director_opening_weekend(
     db: Session, director_person_id: int, exclude_movie_id: int, target_budget_usd: int | None
 ) -> float | None:
+    if not target_budget_usd:
+        return None
     rows = (
         db.query(WeeklyGrossObservation.weekend_gross_usd, Movie.budget_usd)
         .join(MovieCredit, MovieCredit.movie_id == WeeklyGrossObservation.movie_id)
@@ -111,11 +112,8 @@ def _genre_opening_weekend(
     if not genres:
         return None
     if not target_budget_usd:
-        # Genre tags are broad (a film usually has several) - without a budget to scale
-        # comps against, blending raw dollar figures across genre-mates is too likely to
-        # mix wildly different budget tiers (an indie and a tentpole sharing "Action").
-        # The director comp above is a tighter group and still uses raw figures in this
-        # case; genre is too loose to risk it.
+        # short-circuit: _budget_scaled_average would return None anyway without a target
+        # budget to scale against, so skip the query entirely
         return None
     rows = (
         db.query(WeeklyGrossObservation.weekend_gross_usd, Movie.budget_usd)
@@ -131,17 +129,7 @@ def _genre_opening_weekend(
     return _budget_scaled_average(rows, target_budget_usd)
 
 
-def get_or_create_prediction(db: Session, movie: Movie) -> Prediction:
-    model_run = _get_or_create_model_run(db)
-
-    existing = (
-        db.query(Prediction)
-        .filter(Prediction.movie_id == movie.id, Prediction.model_run_id == model_run.id)
-        .one_or_none()
-    )
-    if existing is not None:
-        return existing
-
+def _compute_predicted_opening_weekend(db: Session, movie: Movie) -> float | None:
     director_credit = next((c for c in movie.credits if c.role == "director"), None)
     predicted = None
     if director_credit is not None:
@@ -154,6 +142,33 @@ def get_or_create_prediction(db: Session, movie: Movie) -> Prediction:
         predicted = _genre_opening_weekend(
             db, movie.genres, exclude_movie_id=movie.id, target_budget_usd=movie.budget_usd
         )
+
+    return predicted
+
+
+def get_or_create_prediction(db: Session, movie: Movie) -> Prediction:
+    """Predictions refresh once a day rather than caching forever - e.g. a budget figure that
+    gets added to TMDB, or a new comp getting ingested, should show up in tomorrow's prediction
+    without waiting on a new model version."""
+    model_run = _get_or_create_model_run(db)
+
+    existing = (
+        db.query(Prediction)
+        .filter(Prediction.movie_id == movie.id, Prediction.model_run_id == model_run.id)
+        .one_or_none()
+    )
+    is_stale = existing is not None and (datetime.now(timezone.utc) - existing.predicted_at) > PREDICTION_REFRESH_INTERVAL
+    if existing is not None and not is_stale:
+        return existing
+
+    predicted = _compute_predicted_opening_weekend(db, movie)
+
+    if existing is not None:
+        existing.predicted_opening_weekend_usd = predicted
+        existing.predicted_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(existing)
+        return existing
 
     prediction = Prediction(
         movie_id=movie.id,

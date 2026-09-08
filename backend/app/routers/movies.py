@@ -22,12 +22,17 @@ from app.services.prediction_service import get_or_create_prediction
 from app.services.profitability import compute_profitability_status
 from app.services.tmdb_client import tmdb_client
 
-THIS_WEEK_LOOKAHEAD_DAYS = 14
-THIS_WEEK_LOOKBACK_DAYS = 6
 THIS_WEEK_MAX_RESULTS = 10
 MIN_THEATRICAL_RUNTIME_MINUTES = 60
 
 router = APIRouter(prefix="/api/movies", tags=["movies"])
+
+
+def _current_box_office_week(today: date) -> tuple[date, date]:
+    """The box office week is Monday-Sunday (studios report official weekend numbers Sunday)."""
+    monday = today - timedelta(days=today.weekday())
+    sunday = monday + timedelta(days=6)
+    return monday, sunday
 
 BROWSE_ROW_PATHS = {
     "trending": "/trending/movie/week",
@@ -64,8 +69,7 @@ def browse_movies() -> MovieBrowseRows:
 @router.get("/this-week", response_model=list[ThisWeekMovie])
 def this_week_movies(db: Session = Depends(get_db)) -> list[ThisWeekMovie]:
     today = date.today()
-    window_start = today - timedelta(days=THIS_WEEK_LOOKBACK_DAYS)
-    window_end = today + timedelta(days=THIS_WEEK_LOOKAHEAD_DAYS)
+    window_start, window_end = _current_box_office_week(today)
 
     candidates = tmdb_client.discover_movies_by_date_range(window_start.isoformat(), window_end.isoformat())
 
