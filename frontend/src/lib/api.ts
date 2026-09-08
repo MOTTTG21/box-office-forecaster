@@ -6,6 +6,7 @@ import {
   MovieSearchResult,
   PersonDetail,
   PersonSearchResult,
+  PredictionHistory,
   ThisWeekMovie,
   WeeklyGrossPoint,
 } from "./types";
@@ -80,6 +81,14 @@ export async function getPerson(tmdbId: number): Promise<PersonDetail> {
   const res = await fetch(`${API_URL}/api/people/${tmdbId}`, { next: { revalidate: 3600 } });
   if (!res.ok) {
     throw new Error("Person not found");
+  }
+  return res.json();
+}
+
+export async function getPredictionHistory(tmdbId: number): Promise<PredictionHistory | null> {
+  const res = await fetch(`${API_URL}/api/movies/${tmdbId}/prediction-history`, { next: { revalidate: 900 } });
+  if (!res.ok) {
+    throw new Error("Failed to load prediction history");
   }
   return res.json();
 }

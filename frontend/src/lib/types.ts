@@ -90,6 +90,19 @@ export interface ThisWeekMovie {
   previous_weekend_gross_usd: number | null;
 }
 
+export interface PredictionSnapshotPoint {
+  snapshot_date: string;
+  predicted_weekend_gross_usd: number | null;
+  news_reason: string | null;
+}
+
+export interface PredictionHistory {
+  week_number: number;
+  is_new_release: boolean;
+  snapshots: PredictionSnapshotPoint[];
+  actual_weekend_gross_usd: number | null;
+}
+
 export interface ComparisonPoint {
   week_number: number;
   cumulative_gross_usd: number | null;

@@ -3,7 +3,9 @@ import Link from "next/link";
 
 import { posterUrl } from "@/lib/api";
 import { formatCompactUsd } from "@/lib/format";
-import { ThisWeekMovie } from "@/lib/types";
+import { PredictionHistory, ThisWeekMovie } from "@/lib/types";
+
+import PredictionSparkline from "./PredictionSparkline";
 
 const HEAT_TIERS = [
   { max: 5_000_000, label: "Light", chip: "bg-[#2a78d6]/15 text-[#2a78d6] dark:bg-[#3987e5]/20 dark:text-[#6da7ec]" },
@@ -26,7 +28,13 @@ function dayLabel(dateStr: string | null): { weekday: string; date: string } {
   };
 }
 
-export default function ForecastCard({ movie }: { movie: ThisWeekMovie }) {
+export default function ForecastCard({
+  movie,
+  history = null,
+}: {
+  movie: ThisWeekMovie;
+  history?: PredictionHistory | null;
+}) {
   const poster = posterUrl(movie.poster_path, "w185");
   const { weekday, date } = dayLabel(movie.release_date);
 
@@ -75,6 +83,7 @@ export default function ForecastCard({ movie }: { movie: ThisWeekMovie }) {
             )}
           </span>
         </div>
+        <PredictionSparkline history={history} />
       </div>
 
       {hasDelta && (

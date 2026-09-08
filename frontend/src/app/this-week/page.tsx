@@ -1,8 +1,18 @@
 import ForecastCard from "@/components/ForecastCard";
-import { getThisWeek } from "@/lib/api";
+import { getPredictionHistory, getThisWeek } from "@/lib/api";
+import { PredictionHistory } from "@/lib/types";
 
 export default async function ThisWeekPage() {
   const movies = await getThisWeek();
+  const histories = await Promise.all(
+    movies.map(async (movie): Promise<PredictionHistory | null> => {
+      try {
+        return await getPredictionHistory(movie.tmdb_id);
+      } catch {
+        return null;
+      }
+    }),
+  );
 
   return (
     <div className="min-h-screen bg-zinc-50 px-6 py-12 dark:bg-black">
@@ -24,8 +34,8 @@ export default async function ThisWeekPage() {
           <p className="text-sm text-zinc-500 dark:text-zinc-400">No movies found in this window.</p>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {movies.map((movie) => (
-              <ForecastCard key={movie.tmdb_id} movie={movie} />
+            {movies.map((movie, index) => (
+              <ForecastCard key={movie.tmdb_id} movie={movie} history={histories[index]} />
             ))}
           </div>
         )}
