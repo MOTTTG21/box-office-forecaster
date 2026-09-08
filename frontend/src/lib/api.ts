@@ -1,4 +1,13 @@
-import { ComparisonSeries, MovieBrowseRows, MovieDetail, MovieSearchResult, ThisWeekMovie, WeeklyGrossPoint } from "./types";
+import {
+  ComparisonSeries,
+  MovieBrowseRows,
+  MovieDetail,
+  MovieSearchResult,
+  PersonDetail,
+  PersonSearchResult,
+  ThisWeekMovie,
+  WeeklyGrossPoint,
+} from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -54,6 +63,22 @@ export async function getYearComparison(tmdbId: number): Promise<ComparisonSerie
   const res = await fetch(`${API_URL}/api/movies/${tmdbId}/compare/year`, { cache: "no-store" });
   if (!res.ok) {
     throw new Error("Failed to load year comparison");
+  }
+  return res.json();
+}
+
+export async function searchPeople(query: string): Promise<PersonSearchResult[]> {
+  const res = await fetch(`${API_URL}/api/people/search?q=${encodeURIComponent(query)}`);
+  if (!res.ok) {
+    throw new Error("Person search request failed");
+  }
+  return res.json();
+}
+
+export async function getPerson(tmdbId: number): Promise<PersonDetail> {
+  const res = await fetch(`${API_URL}/api/people/${tmdbId}`, { next: { revalidate: 3600 } });
+  if (!res.ok) {
+    throw new Error("Person not found");
   }
   return res.json();
 }

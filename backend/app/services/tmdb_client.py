@@ -33,6 +33,16 @@ class TMDBClient:
         response.raise_for_status()
         return response.json()
 
+    def get_person(self, person_tmdb_id: int) -> dict:
+        response = self._client.get(f"/person/{person_tmdb_id}")
+        response.raise_for_status()
+        return response.json()
+
+    def search_people(self, query: str) -> list[dict]:
+        response = self._client.get("/search/person", params={"query": query})
+        response.raise_for_status()
+        return response.json()["results"]
+
     def get_collection(self, collection_id: int) -> dict:
         response = self._client.get(f"/collection/{collection_id}")
         response.raise_for_status()

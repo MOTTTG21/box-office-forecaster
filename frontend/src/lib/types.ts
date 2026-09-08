@@ -19,6 +19,30 @@ export interface Person {
   character_name: string | null;
 }
 
+export interface PersonSearchResult {
+  tmdb_id: number;
+  name: string;
+  profile_path: string | null;
+  known_for_department: string | null;
+}
+
+export interface FilmographyItem {
+  tmdb_id: number;
+  title: string;
+  poster_path: string | null;
+  release_date: string | null;
+  role: string;
+}
+
+export interface PersonDetail {
+  tmdb_id: number;
+  name: string;
+  profile_path: string | null;
+  known_for_department: string | null;
+  biography: string | null;
+  filmography: FilmographyItem[];
+}
+
 export interface MovieDetail {
   id: number;
   tmdb_id: number;

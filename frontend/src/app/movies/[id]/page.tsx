@@ -97,7 +97,15 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
               <dt className="text-zinc-500 dark:text-zinc-400">Budget</dt>
               <dd className="text-zinc-900 dark:text-zinc-50">{formatUsd(movie.budget_usd)}</dd>
               <dt className="text-zinc-500 dark:text-zinc-400">Director</dt>
-              <dd className="text-zinc-900 dark:text-zinc-50">{movie.director?.name ?? "Unknown"}</dd>
+              <dd className="text-zinc-900 dark:text-zinc-50">
+                {movie.director ? (
+                  <Link href={`/people/${movie.director.tmdb_id}`} className="hover:underline">
+                    {movie.director.name}
+                  </Link>
+                ) : (
+                  "Unknown"
+                )}
+              </dd>
               <dt className="text-zinc-500 dark:text-zinc-400">Domestic Gross</dt>
               <dd className="text-zinc-900 dark:text-zinc-50">{formatUsd(movie.domestic_gross_usd)}</dd>
               <dt className="text-zinc-500 dark:text-zinc-400">Worldwide Gross</dt>
@@ -112,7 +120,9 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
             <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-zinc-700 dark:text-zinc-300">
               {movie.cast.map((member) => (
                 <span key={member.id}>
-                  {member.name}
+                  <Link href={`/people/${member.tmdb_id}`} className="hover:underline">
+                    {member.name}
+                  </Link>
                   {member.character_name && (
                     <span className="text-zinc-500 dark:text-zinc-400"> as {member.character_name}</span>
                   )}
