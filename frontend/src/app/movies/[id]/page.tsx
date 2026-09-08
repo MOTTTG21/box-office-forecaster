@@ -4,14 +4,8 @@ import { notFound } from "next/navigation";
 
 import { getMovie, getWeeklyGross, posterUrl } from "@/lib/api";
 import WeeklyGrossChart from "@/components/WeeklyGrossChart";
+import { formatUsd } from "@/lib/format";
 import { WeeklyGrossPoint } from "@/lib/types";
-
-function formatUsd(amount: number | null): string {
-  if (!amount) return "Unknown";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(
-    amount,
-  );
-}
 
 export default async function MovieDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

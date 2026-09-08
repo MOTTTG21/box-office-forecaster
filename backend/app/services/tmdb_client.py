@@ -28,5 +28,24 @@ class TMDBClient:
         response.raise_for_status()
         return response.json()
 
+    def get_person_movie_credits(self, person_tmdb_id: int) -> dict:
+        response = self._client.get(f"/person/{person_tmdb_id}/movie_credits")
+        response.raise_for_status()
+        return response.json()
+
+    def discover_movies_by_date_range(self, start_date: str, end_date: str) -> list[dict]:
+        response = self._client.get(
+            "/discover/movie",
+            params={
+                "region": "US",
+                "sort_by": "popularity.desc",
+                "with_release_type": "2|3",
+                "primary_release_date.gte": start_date,
+                "primary_release_date.lte": end_date,
+            },
+        )
+        response.raise_for_status()
+        return response.json()["results"]
+
 
 tmdb_client = TMDBClient()

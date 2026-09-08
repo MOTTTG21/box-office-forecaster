@@ -43,3 +43,12 @@ export interface WeeklyGrossPoint {
   theater_count: number | null;
   rank: number | null;
 }
+
+export interface ThisWeekMovie {
+  tmdb_id: number;
+  title: string;
+  release_date: string | null;
+  poster_path: string | null;
+  predicted_opening_weekend_usd: number | null;
+  actual_opening_weekend_usd: number | null;
+}

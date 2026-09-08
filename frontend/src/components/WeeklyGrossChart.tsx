@@ -2,28 +2,12 @@
 
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
+import { formatCompactUsd, formatUsd } from "@/lib/format";
 import { WeeklyGrossPoint } from "@/lib/types";
 
 const CHART_VARS =
   "[--grid:#e1e0d9] [--axis-ink:#898781] [--series:#2a78d6] " +
   "dark:[--grid:#2c2c2a] dark:[--axis-ink:#898781] dark:[--series:#3987e5]";
-
-function formatCompactUsd(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(value);
-}
-
-function formatFullUsd(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
 
 function tickInterval(pointCount: number): number {
   return Math.max(0, Math.ceil(pointCount / 10) - 1);
@@ -47,7 +31,7 @@ function ChartTooltip({ active, payload, label, valueLabel }: ChartTooltipProps)
       <div className="font-medium text-zinc-900 dark:text-zinc-50">Week {label}</div>
       {point.week_start_date && <div className="text-zinc-500 dark:text-zinc-400">{point.week_start_date}</div>}
       <div className="mt-1 text-zinc-700 dark:text-zinc-300">
-        {valueLabel}: <span className="font-medium">{formatFullUsd(value)}</span>
+        {valueLabel}: <span className="font-medium">{formatUsd(value)}</span>
       </div>
       {point.theater_count != null && (
         <div className="text-zinc-500 dark:text-zinc-400">{point.theater_count.toLocaleString()} theaters</div>

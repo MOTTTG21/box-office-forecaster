@@ -53,3 +53,12 @@ class WeeklyGrossPoint(BaseModel):
     cumulative_gross_usd: int | None = None
     theater_count: int | None = None
     rank: int | None = None
+
+
+class ThisWeekMovie(BaseModel):
+    tmdb_id: int
+    title: str
+    release_date: date | None = None
+    poster_path: str | None = None
+    predicted_opening_weekend_usd: float | None = None
+    actual_opening_weekend_usd: int | None = None

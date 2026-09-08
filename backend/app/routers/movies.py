@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -6,8 +8,20 @@ from app.core.db import get_db
 from app.etl.ingest_tmdb import upsert_movie_from_tmdb
 from app.etl.scrape_boxofficemojo import ingest_weekly_gross_from_boxofficemojo
 from app.models import Movie
-from app.schemas.movie import MovieBrowseRows, MovieDetail, MovieSearchResult, PersonOut, WeeklyGrossPoint
+from app.schemas.movie import (
+    MovieBrowseRows,
+    MovieDetail,
+    MovieSearchResult,
+    PersonOut,
+    ThisWeekMovie,
+    WeeklyGrossPoint,
+)
+from app.services.prediction_service import get_or_create_prediction
 from app.services.tmdb_client import tmdb_client
+
+THIS_WEEK_LOOKAHEAD_DAYS = 14
+THIS_WEEK_LOOKBACK_DAYS = 6
+THIS_WEEK_MAX_RESULTS = 10
 
 router = APIRouter(prefix="/api/movies", tags=["movies"])
 
@@ -41,6 +55,57 @@ def browse_movies() -> MovieBrowseRows:
     return MovieBrowseRows(
         **{row: _to_search_results(tmdb_client.get_movie_list(path)) for row, path in BROWSE_ROW_PATHS.items()}
     )
+
+
+@router.get("/this-week", response_model=list[ThisWeekMovie])
+def this_week_movies(db: Session = Depends(get_db)) -> list[ThisWeekMovie]:
+    today = date.today()
+    window_start = today - timedelta(days=THIS_WEEK_LOOKBACK_DAYS)
+    window_end = today + timedelta(days=THIS_WEEK_LOOKAHEAD_DAYS)
+
+    candidates = tmdb_client.discover_movies_by_date_range(window_start.isoformat(), window_end.isoformat())
+
+    in_window = []
+    for result in candidates:
+        release_date_str = result.get("release_date")
+        if not release_date_str:
+            continue
+        release_date = date.fromisoformat(release_date_str)
+        if window_start <= release_date <= window_end:
+            in_window.append(result)
+    in_window = in_window[:THIS_WEEK_MAX_RESULTS]
+
+    output: list[ThisWeekMovie] = []
+    for result in in_window:
+        movie = db.query(Movie).filter(Movie.tmdb_id == result["id"]).one_or_none()
+        if movie is None:
+            try:
+                movie = upsert_movie_from_tmdb(db, result["id"])
+            except httpx.HTTPStatusError:
+                continue
+
+        prediction = get_or_create_prediction(db, movie)
+
+        actual_opening = None
+        if movie.release_date and movie.release_date <= today:
+            observations = ingest_weekly_gross_from_boxofficemojo(db, movie)
+            opening = next((o for o in observations if o.week_number == 1), None)
+            if opening:
+                actual_opening = opening.weekend_gross_usd
+
+        output.append(
+            ThisWeekMovie(
+                tmdb_id=movie.tmdb_id,
+                title=movie.title,
+                release_date=movie.release_date,
+                poster_path=movie.poster_path,
+                predicted_opening_weekend_usd=prediction.predicted_opening_weekend_usd,
+                actual_opening_weekend_usd=actual_opening,
+            )
+        )
+
+    output.sort(key=lambda m: m.release_date or date.max)
+    return output
 
 
 @router.get("/{tmdb_id}", response_model=MovieDetail)

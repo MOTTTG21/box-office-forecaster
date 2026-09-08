@@ -66,17 +66,31 @@ def _fetch_weekend_rows(client: httpx.Client, weekend_url: str, release_year: in
 
     rows = table.find_all("tr")[1:]  # skip header
     observations = []
+    seen_week_numbers: set[int] = set()
     current_year = release_year
     prev_month = None
 
     for row in rows:
+        date_cell = row.find("td")
+        date_link = date_cell.find("a") if date_cell else None
+        if date_link and "/occasion/" in (date_link.get("href") or ""):
+            # supplementary holiday-window row (e.g. "Easter wknd") layered on top of a
+            # regular week's row for the same date range - not a distinct week, skip it
+            continue
+
         cells = [c.get_text(" ", strip=True) for c in row.find_all("td")]
         if len(cells) < 9:
             continue
 
         week_number_text = cells[8].strip()
         if not week_number_text.isdigit():
-            continue  # holiday-labeled duplicate row (e.g. "Labor Day wknd"), not a distinct week
+            continue
+        week_number = int(week_number_text)
+        if week_number in seen_week_numbers:
+            # defensive: guards against any other BOM table quirk producing a repeat
+            # week number, which would otherwise violate our unique constraint
+            continue
+        seen_week_numbers.add(week_number)
 
         date_match = DATE_CELL_RE.match(cells[0])
         week_start_date = None
@@ -91,7 +105,7 @@ def _fetch_weekend_rows(client: httpx.Client, weekend_url: str, release_year: in
 
         observations.append(
             {
-                "week_number": int(week_number_text),
+                "week_number": week_number,
                 "week_start_date": week_start_date,
                 "rank": _parse_int(cells[1]),
                 "weekend_gross_usd": _parse_money(cells[2]),
