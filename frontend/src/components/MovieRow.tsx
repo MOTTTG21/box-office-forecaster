@@ -34,20 +34,26 @@ export default function MovieRow({
     const el = scrollerRef.current;
     if (!el) return;
 
+    // The row's content is rendered twice back-to-back (see displayMovies below), so there's
+    // always more to scroll into. Once scrolled past one full set's width, jump back by that
+    // width with no animation - the duplicated content lines up exactly at that point, so the
+    // wrap is invisible and the loop feels endless instead of visibly rewinding.
+    const setWidth = el.scrollWidth / 2;
+
     const interval = setInterval(() => {
       if (isPausedRef.current) return;
-      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
-      if (atEnd) {
-        el.scrollTo({ left: 0, behavior: "smooth" });
-      } else {
-        el.scrollLeft += AUTO_SCROLL_PIXELS_PER_TICK;
+      el.scrollLeft += AUTO_SCROLL_PIXELS_PER_TICK;
+      if (el.scrollLeft >= setWidth) {
+        el.scrollLeft -= setWidth;
       }
     }, AUTO_SCROLL_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, [autoScroll]);
+  }, [autoScroll, movies]);
 
   if (movies.length === 0) return null;
+
+  const displayMovies = autoScroll ? [...movies, ...movies] : movies;
 
   return (
     <section className="flex flex-col gap-3">
@@ -77,11 +83,11 @@ export default function MovieRow({
           ref={scrollerRef}
           className="flex gap-3 overflow-x-auto px-6 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-0 [&::-webkit-scrollbar]:hidden"
         >
-          {movies.map((movie) => {
+          {displayMovies.map((movie, index) => {
             const poster = posterUrl(movie.poster_path, "w500");
             return (
               <Link
-                key={movie.tmdb_id}
+                key={`${movie.tmdb_id}-${index}`}
                 href={`/movies/${movie.tmdb_id}`}
                 className="group/card relative w-[140px] shrink-0 overflow-hidden rounded-md bg-zinc-200 transition-transform duration-200 ease-out hover:z-10 hover:scale-110 dark:bg-zinc-800 sm:w-[160px]"
               >
