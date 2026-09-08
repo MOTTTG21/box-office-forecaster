@@ -36,14 +36,22 @@ def _parse_money(text: str) -> int | None:
     text = text.strip()
     if not text or text == "-":
         return None
-    return int(text.replace("$", "").replace(",", ""))
+    try:
+        return int(text.replace("$", "").replace(",", ""))
+    except ValueError:
+        # BOM's markup for this cell didn't match the expected "$1,234" shape - treat it as
+        # unknown rather than letting one odd cell take down the whole movie's ingestion
+        return None
 
 
 def _parse_int(text: str) -> int | None:
     text = text.strip()
     if not text or text == "-":
         return None
-    return int(text.replace(",", ""))
+    try:
+        return int(text.replace(",", ""))
+    except ValueError:
+        return None
 
 
 def _find_domestic_weekend_url(client: httpx.Client, imdb_id: str) -> str | None:

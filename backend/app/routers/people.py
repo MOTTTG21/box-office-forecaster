@@ -1,7 +1,7 @@
 from datetime import date
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.core.limiter import LOOKUP_RATE_LIMIT, SEARCH_RATE_LIMIT, limiter
 from app.schemas.person import FilmographyItem, PersonDetail, PersonSearchResult
@@ -50,7 +50,7 @@ def _build_filmography(credits: dict) -> list[FilmographyItem]:
 
 @router.get("/search", response_model=list[PersonSearchResult])
 @limiter.limit(SEARCH_RATE_LIMIT)
-def search_people(request: Request, q: str) -> list[PersonSearchResult]:
+def search_people(request: Request, q: str = Query(..., max_length=200)) -> list[PersonSearchResult]:
     return [
         PersonSearchResult(
             tmdb_id=result["id"],

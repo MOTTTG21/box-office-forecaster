@@ -1,11 +1,11 @@
 from datetime import date, timedelta
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.core.limiter import LOOKUP_RATE_LIMIT, SEARCH_RATE_LIMIT, limiter
+from app.core.limiter import DEFAULT_RATE_LIMIT, LOOKUP_RATE_LIMIT, SEARCH_RATE_LIMIT, limiter
 from app.etl.ingest_omdb import ingest_critic_scores
 from app.etl.ingest_tmdb import upsert_movie_from_tmdb
 from app.etl.scrape_boxofficemojo import ingest_lifetime_grosses, ingest_weekly_gross_from_boxofficemojo
@@ -59,19 +59,21 @@ def _to_search_results(results: list[dict]) -> list[MovieSearchResult]:
 
 @router.get("/search", response_model=list[MovieSearchResult])
 @limiter.limit(SEARCH_RATE_LIMIT)
-def search_movies(request: Request, q: str) -> list[MovieSearchResult]:
+def search_movies(request: Request, q: str = Query(..., max_length=200)) -> list[MovieSearchResult]:
     return _to_search_results(tmdb_client.search_movies(q))
 
 
 @router.get("/browse", response_model=MovieBrowseRows)
-def browse_movies() -> MovieBrowseRows:
+@limiter.limit(DEFAULT_RATE_LIMIT)
+def browse_movies(request: Request) -> MovieBrowseRows:
     return MovieBrowseRows(
         **{row: _to_search_results(tmdb_client.get_movie_list(path)) for row, path in BROWSE_ROW_PATHS.items()}
     )
 
 
 @router.get("/this-week", response_model=list[ThisWeekMovie])
-def this_week_movies(db: Session = Depends(get_db)) -> list[ThisWeekMovie]:
+@limiter.limit(LOOKUP_RATE_LIMIT)
+def this_week_movies(request: Request, db: Session = Depends(get_db)) -> list[ThisWeekMovie]:
     today = date.today()
     window_start, window_end = _current_box_office_week(today)
 

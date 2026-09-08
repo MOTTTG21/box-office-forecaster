@@ -2,7 +2,7 @@ from pathlib import Path
 
 import httpx
 
-from app.etl.scrape_boxofficemojo import _fetch_weekend_rows
+from app.etl.scrape_boxofficemojo import _fetch_weekend_rows, _parse_int, _parse_money
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -56,6 +56,24 @@ def test_holiday_occasion_row_is_skipped_not_double_counted():
     assert len(week_numbers) == len(set(week_numbers))
     # the real weekend row for that date (not the holiday duplicate) should be present
     assert any(r["week_number"] == 2 and r["weekend_gross_usd"] == 13_881_006 for r in rows)
+
+
+def test_parse_money_handles_normal_values():
+    assert _parse_money("$1,234,567") == 1_234_567
+    assert _parse_money("-") is None
+    assert _parse_money("") is None
+
+
+def test_parse_money_returns_none_on_unexpected_markup_instead_of_raising():
+    # real risk: a BOM markup change puts non-numeric text in a money cell (e.g. a footnote
+    # marker or "TBD") - one odd cell shouldn't take down the whole movie's ingestion
+    assert _parse_money("TBD") is None
+    assert _parse_money("$--") is None
+
+
+def test_parse_int_returns_none_on_unexpected_markup_instead_of_raising():
+    assert _parse_int("n/a") is None
+    assert _parse_int("3,610") == 3610
 
 
 def test_empty_table_returns_empty_list():
