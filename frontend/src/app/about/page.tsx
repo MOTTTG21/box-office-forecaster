@@ -45,10 +45,14 @@ export default function AboutPage() {
           <p>
             I don&apos;t just claim this works — I tested it. Every prediction the model would have made for movies
             already in the database (leaving each movie out of its own comparison, so it&apos;s not cheating) gets
-            checked against what actually happened. Right now, across every movie with a real budget and a real
-            opening weekend on record, the model&apos;s predictions are off by a median of about 79%. That&apos;s a
-            heuristic — an educated guess built from historical averages — not a trained model, and this is an
-            honest number, not a polished one.
+            checked against what actually happened. That backtest is scored only against movies that themselves
+            opened wide (600+ theaters) — that&apos;s the population &ldquo;This Week&rdquo; actually predicts for.
+            The database also holds smaller limited-release films that only got in via a director&apos;s
+            auto-backfilled history, and no amount of comp-selection can fix a prediction for a film that was never
+            going to open wide in the first place — including those would dilute the number with an unrelated,
+            unsolvable case rather than make it more honest. Scored that way, the model&apos;s predictions are off
+            by a median of about 67%. That&apos;s a heuristic — an educated guess built from historical averages —
+            not a trained model, and this is an honest number, not a polished one.
           </p>
           <p>
             I also checked whether a film&apos;s critic score (Rotten Tomatoes) would help explain the model&apos;s

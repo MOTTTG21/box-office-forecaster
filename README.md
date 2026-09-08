@@ -25,10 +25,18 @@ that runs the exact prediction logic against every movie already in the database
 known budget and a real opening-weekend actual, excluding each movie from its own comp pool,
 and compares predicted to actual.
 
-**Current result: 43 eligible movies, 100% coverage, median absolute error 79%.**
+**Current result: 32 eligible movies, 100% coverage, median absolute error 67%.**
 
-That's not a good number, and I'd rather show it than hide it. Digging into *why* found two
-real bugs that are now fixed, with regression tests:
+That number is scoped to wide releases (>=600 opening theaters) on purpose. The database also
+contains limited/platform releases that only entered it via a director's auto-backfilled
+history, and no amount of comp-selection logic can fix their predictions — a film that was
+never going to open wide isn't a solvable case, it's a different population. Averaging them in
+didn't make the backtest more honest, it just diluted a number that's supposed to answer "how
+good is this for what 'This Week' actually predicts" with an unrelated, unsolvable case. So the
+backtest measures the population the model is actually used for.
+
+That's still not a great number, and I'd rather show it than hide it. Digging into *why* found
+two real bugs that are now fixed, with regression tests:
 
 1. **A director whose only real comp was a Netflix original's token theatrical run** predicted
    a Sandra Bullock/Nicole Kidman studio sequel's opening at ~$50K. The root cause: the
