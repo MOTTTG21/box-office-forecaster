@@ -58,7 +58,11 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
                 <div className="flex h-full items-center justify-center text-xs text-zinc-400">No poster</div>
               )}
             </div>
-            <ProfitabilityBanner status={movie.profitability_status} />
+            <ProfitabilityBanner
+              status={movie.profitability_status}
+              releaseDate={movie.release_date}
+              movieStatus={movie.status}
+            />
           </div>
 
           <div className="flex flex-1 flex-col gap-3">
