@@ -98,3 +98,14 @@ export interface ComparisonSeries {
   is_current: boolean;
   points: ComparisonPoint[];
 }
+
+export interface DataAnomaly {
+  tmdb_id: number;
+  title: string;
+  poster_path: string | null;
+  rule_name: string;
+  severity: "high" | "medium" | "low";
+  detail: string;
+  ai_explanation: string | null;
+  detected_at: string;
+}

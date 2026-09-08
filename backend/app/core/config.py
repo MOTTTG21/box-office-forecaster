@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg2://localhost/box_office_forecaster"
     tmdb_api_key: str = ""
     omdb_api_key: str = ""
+    anthropic_api_key: str = ""
     allowed_origins: list[str] = ["http://localhost:3000"]
     model_artifact_dir: str = "app/ml/artifacts"
     env: str = "development"

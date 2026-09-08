@@ -1,5 +1,6 @@
 import {
   ComparisonSeries,
+  DataAnomaly,
   MovieBrowseRows,
   MovieDetail,
   MovieSearchResult,
@@ -79,6 +80,14 @@ export async function getPerson(tmdbId: number): Promise<PersonDetail> {
   const res = await fetch(`${API_URL}/api/people/${tmdbId}`, { next: { revalidate: 3600 } });
   if (!res.ok) {
     throw new Error("Person not found");
+  }
+  return res.json();
+}
+
+export async function getDataAnomalies(): Promise<DataAnomaly[]> {
+  const res = await fetch(`${API_URL}/api/data-quality`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error("Failed to load data quality report");
   }
   return res.json();
 }
