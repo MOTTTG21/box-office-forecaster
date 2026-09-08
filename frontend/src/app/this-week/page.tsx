@@ -1,4 +1,4 @@
-import ForecastCard from "@/components/ForecastCard";
+import CombinedForecastChart from "@/components/CombinedForecastChart";
 import { getPredictionHistory, getThisWeek } from "@/lib/api";
 import { PredictionHistory } from "@/lib/types";
 
@@ -24,20 +24,15 @@ export default async function ThisWeekPage() {
           <p className="max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
             The top 10 highest-grossing films predicted for this box office weekend (Monday&ndash;Sunday) &mdash;
             new releases (opening-weekend forecast) and holdovers (predicted from their own trajectory so far),
-            ranked together. Predictions refresh daily and fill in with the real number once it&apos;s reported.
-            A prediction only shows once there&apos;s enough data to compare against, so &ldquo;not enough
-            data&rdquo; is expected for some titles.
+            ranked together. A prediction only shows once there&apos;s enough data to compare against, so
+            &ldquo;not enough data&rdquo; is expected for some titles.
           </p>
         </div>
 
         {movies.length === 0 ? (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">No movies found in this window.</p>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {movies.map((movie, index) => (
-              <ForecastCard key={movie.tmdb_id} movie={movie} history={histories[index]} />
-            ))}
-          </div>
+          <CombinedForecastChart entries={movies.map((movie, index) => ({ movie, history: histories[index] }))} />
         )}
       </div>
     </div>

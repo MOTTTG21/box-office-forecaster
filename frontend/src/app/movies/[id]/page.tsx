@@ -2,21 +2,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import {
-  getFranchiseComparison,
-  getMovie,
-  getPredictionHistory,
-  getWeeklyGross,
-  getYearComparison,
-  posterUrl,
-} from "@/lib/api";
+import { getFranchiseComparison, getMovie, getWeeklyGross, getYearComparison, posterUrl } from "@/lib/api";
 import CompareSection from "@/components/CompareSection";
 import CriticScores from "@/components/CriticScores";
-import PredictionHistoryChart from "@/components/PredictionHistoryChart";
 import ProfitabilityBanner from "@/components/ProfitabilityBanner";
 import WeeklyGrossChart from "@/components/WeeklyGrossChart";
 import { formatUsd } from "@/lib/format";
-import { ComparisonSeries, PredictionHistory, WeeklyGrossPoint } from "@/lib/types";
+import { ComparisonSeries, WeeklyGrossPoint } from "@/lib/types";
 
 export default async function MovieDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -49,13 +41,6 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
       franchiseComparison = [];
       yearComparison = [];
     }
-  }
-
-  let predictionHistory: PredictionHistory | null = null;
-  try {
-    predictionHistory = await getPredictionHistory(tmdbId);
-  } catch {
-    predictionHistory = null;
   }
 
   return (
@@ -181,8 +166,6 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
         {(franchiseComparison.length > 0 || yearComparison.length > 0) && (
           <CompareSection franchise={franchiseComparison} year={yearComparison} />
         )}
-
-        <PredictionHistoryChart history={predictionHistory} />
       </div>
     </div>
   );
