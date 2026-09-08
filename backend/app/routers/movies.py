@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.etl.ingest_tmdb import upsert_movie_from_tmdb
+from app.etl.scrape_boxofficemojo import ingest_weekly_gross_from_boxofficemojo
 from app.models import Movie
-from app.schemas.movie import MovieBrowseRows, MovieDetail, MovieSearchResult, PersonOut
+from app.schemas.movie import MovieBrowseRows, MovieDetail, MovieSearchResult, PersonOut, WeeklyGrossPoint
 from app.services.tmdb_client import tmdb_client
 
 router = APIRouter(prefix="/api/movies", tags=["movies"])
@@ -80,3 +81,16 @@ def get_movie(tmdb_id: int, db: Session = Depends(get_db)) -> MovieDetail:
             for c in cast
         ],
     )
+
+
+@router.get("/{tmdb_id}/weekly-gross", response_model=list[WeeklyGrossPoint])
+def get_weekly_gross(tmdb_id: int, db: Session = Depends(get_db)) -> list[WeeklyGrossPoint]:
+    movie = db.query(Movie).filter(Movie.tmdb_id == tmdb_id).one_or_none()
+    if movie is None:
+        try:
+            movie = upsert_movie_from_tmdb(db, tmdb_id)
+        except httpx.HTTPStatusError:
+            raise HTTPException(status_code=404, detail="Movie not found")
+
+    observations = ingest_weekly_gross_from_boxofficemojo(db, movie)
+    return [WeeklyGrossPoint.model_validate(obs) for obs in observations]

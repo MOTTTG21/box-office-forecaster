@@ -42,3 +42,14 @@ class MovieDetail(BaseModel):
     popularity_tmdb_snapshot: float | None = None
     director: PersonOut | None = None
     cast: list[PersonOut] = []
+
+
+class WeeklyGrossPoint(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    week_number: int
+    week_start_date: date | None = None
+    weekend_gross_usd: int | None = None
+    cumulative_gross_usd: int | None = None
+    theater_count: int | None = None
+    rank: int | None = None

@@ -2,7 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { getMovie, posterUrl } from "@/lib/api";
+import { getMovie, getWeeklyGross, posterUrl } from "@/lib/api";
+import WeeklyGrossChart from "@/components/WeeklyGrossChart";
 
 function formatUsd(amount: number | null): string {
   if (!amount) return "Unknown";
@@ -23,6 +24,13 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
   }
 
   const poster = posterUrl(movie.poster_path, "w342");
+
+  let weeklyGross;
+  try {
+    weeklyGross = await getWeeklyGross(tmdbId);
+  } catch {
+    weeklyGross = [];
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50 px-6 py-12 dark:bg-black">
@@ -87,8 +95,10 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
           </div>
         )}
 
+        <WeeklyGrossChart data={weeklyGross} />
+
         <div className="rounded-lg border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-          Box office chart and gross prediction coming soon.
+          Gross prediction coming soon.
         </div>
       </div>
     </div>

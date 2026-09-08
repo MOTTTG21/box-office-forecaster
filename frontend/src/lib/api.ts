@@ -1,4 +1,4 @@
-import { MovieBrowseRows, MovieDetail, MovieSearchResult } from "./types";
+import { MovieBrowseRows, MovieDetail, MovieSearchResult, WeeklyGrossPoint } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -22,6 +22,14 @@ export async function getMovie(tmdbId: number): Promise<MovieDetail> {
   const res = await fetch(`${API_URL}/api/movies/${tmdbId}`, { cache: "no-store" });
   if (!res.ok) {
     throw new Error("Movie not found");
+  }
+  return res.json();
+}
+
+export async function getWeeklyGross(tmdbId: number): Promise<WeeklyGrossPoint[]> {
+  const res = await fetch(`${API_URL}/api/movies/${tmdbId}/weekly-gross`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error("Failed to load weekly gross");
   }
   return res.json();
 }

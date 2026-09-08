@@ -34,3 +34,12 @@ export interface MovieDetail {
   director: Person | null;
   cast: Person[];
 }
+
+export interface WeeklyGrossPoint {
+  week_number: number;
+  week_start_date: string | null;
+  weekend_gross_usd: number | null;
+  cumulative_gross_usd: number | null;
+  theater_count: number | null;
+  rank: number | null;
+}
