@@ -46,6 +46,28 @@ npm run dev
 ```
 App runs at http://localhost:3000.
 
+## Testing & CI
+
+```bash
+# backend
+cd backend && source venv/bin/activate
+ruff check app/ tests/
+pytest -v
+
+# frontend
+cd frontend
+npm run lint
+npm run typecheck
+npm run test
+```
+
+GitHub Actions (`.github/workflows/ci.yml`) runs all of the above on every push/PR to `main`.
+It deliberately does **not** run a full `next build` — a couple of pages fetch live data
+(TMDB, Box Office Mojo) at build time for static generation, which would make CI slow,
+network-dependent, and require secrets for no real benefit: Vercel already runs a full
+production build with real data on every push, so CI's job here is fast, hermetic
+lint/type/unit-test coverage, not a redundant second full build.
+
 ## Repo layout
 
 ```

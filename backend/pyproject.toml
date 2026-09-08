@@ -1,0 +1,11 @@
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "RUF"]
+ignore = [
+    "B008",   # FastAPI's Depends(...) in argument defaults is the standard pattern, not a bug
+]
+
+[tool.ruff.lint.per-file-ignores]
+"app/models/*.py" = ["F821"]  # SQLAlchemy relationship() forward refs are quoted strings by design

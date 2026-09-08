@@ -129,8 +129,8 @@ def get_movie(tmdb_id: int, db: Session = Depends(get_db)) -> MovieDetail:
     if movie is None:
         try:
             movie = upsert_movie_from_tmdb(db, tmdb_id)
-        except httpx.HTTPStatusError:
-            raise HTTPException(status_code=404, detail="Movie not found")
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(status_code=404, detail="Movie not found") from exc
 
     if movie.status == "released":
         movie = ingest_lifetime_grosses(db, movie)
@@ -179,8 +179,8 @@ def get_weekly_gross(tmdb_id: int, db: Session = Depends(get_db)) -> list[Weekly
     if movie is None:
         try:
             movie = upsert_movie_from_tmdb(db, tmdb_id)
-        except httpx.HTTPStatusError:
-            raise HTTPException(status_code=404, detail="Movie not found")
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(status_code=404, detail="Movie not found") from exc
 
     observations = ingest_weekly_gross_from_boxofficemojo(db, movie)
     return [WeeklyGrossPoint.model_validate(obs) for obs in observations]
@@ -192,8 +192,8 @@ def compare_franchise(tmdb_id: int, db: Session = Depends(get_db)) -> list[Compa
     if movie is None:
         try:
             movie = upsert_movie_from_tmdb(db, tmdb_id)
-        except httpx.HTTPStatusError:
-            raise HTTPException(status_code=404, detail="Movie not found")
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(status_code=404, detail="Movie not found") from exc
 
     return get_franchise_comparison(db, movie)
 
@@ -204,7 +204,7 @@ def compare_year(tmdb_id: int, db: Session = Depends(get_db)) -> list[Comparison
     if movie is None:
         try:
             movie = upsert_movie_from_tmdb(db, tmdb_id)
-        except httpx.HTTPStatusError:
-            raise HTTPException(status_code=404, detail="Movie not found")
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(status_code=404, detail="Movie not found") from exc
 
     return get_same_year_comparison(db, movie)

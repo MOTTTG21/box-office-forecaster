@@ -1,12 +1,11 @@
 from datetime import datetime, timedelta, timezone
 
 import httpx
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.etl.ingest_tmdb import upsert_movie_from_tmdb
 from app.etl.scrape_boxofficemojo import ingest_weekly_gross_from_boxofficemojo
-from app.models import Movie, MovieCredit, ModelRun, Person, Prediction, WeeklyGrossObservation
+from app.models import ModelRun, Movie, MovieCredit, Person, Prediction, WeeklyGrossObservation
 from app.services.tmdb_client import tmdb_client
 
 MODEL_VERSION = "baseline-budget-scaled-v1.2"
@@ -157,7 +156,9 @@ def get_or_create_prediction(db: Session, movie: Movie) -> Prediction:
         .filter(Prediction.movie_id == movie.id, Prediction.model_run_id == model_run.id)
         .one_or_none()
     )
-    is_stale = existing is not None and (datetime.now(timezone.utc) - existing.predicted_at) > PREDICTION_REFRESH_INTERVAL
+    is_stale = existing is not None and (
+        datetime.now(timezone.utc) - existing.predicted_at
+    ) > PREDICTION_REFRESH_INTERVAL
     if existing is not None and not is_stale:
         return existing
 

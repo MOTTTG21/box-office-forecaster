@@ -6,10 +6,10 @@ from app.models.prediction import Prediction
 from app.models.weekly_gross import WeeklyGrossObservation
 
 __all__ = [
-    "Movie",
-    "Person",
-    "MovieCredit",
-    "WeeklyGrossObservation",
     "ModelRun",
+    "Movie",
+    "MovieCredit",
+    "Person",
     "Prediction",
+    "WeeklyGrossObservation",
 ]
