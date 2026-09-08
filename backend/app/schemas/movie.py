@@ -37,6 +37,9 @@ class MovieDetail(BaseModel):
     status: str
     runtime_minutes: int | None = None
     budget_usd: int | None = None
+    domestic_gross_usd: int | None = None
+    worldwide_gross_usd: int | None = None
+    profitability_status: str | None = None
     genres: list[str] | None = None
     poster_path: str | None = None
     popularity_tmdb_snapshot: float | None = None

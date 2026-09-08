@@ -28,6 +28,9 @@ export interface MovieDetail {
   status: string;
   runtime_minutes: number | null;
   budget_usd: number | null;
+  domestic_gross_usd: number | null;
+  worldwide_gross_usd: number | null;
+  profitability_status: "bomb" | "flop" | "success" | null;
   genres: string[] | null;
   poster_path: string | null;
   popularity_tmdb_snapshot: number | null;

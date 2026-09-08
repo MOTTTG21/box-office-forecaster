@@ -20,6 +20,8 @@ class Movie(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="upcoming")
     runtime_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     budget_usd: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    domestic_gross_usd: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    worldwide_gross_usd: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     genres: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     belongs_to_collection_tmdb_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_sequel: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

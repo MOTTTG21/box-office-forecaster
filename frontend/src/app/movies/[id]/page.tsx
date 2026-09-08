@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getMovie, getWeeklyGross, posterUrl } from "@/lib/api";
+import ProfitabilityBanner from "@/components/ProfitabilityBanner";
 import WeeklyGrossChart from "@/components/WeeklyGrossChart";
 import { formatUsd } from "@/lib/format";
 import { WeeklyGrossPoint } from "@/lib/types";
@@ -35,12 +36,15 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
         </Link>
 
         <div className="flex flex-col gap-6 sm:flex-row">
-          <div className="relative aspect-[2/3] w-48 shrink-0 overflow-hidden rounded-lg bg-zinc-200 dark:bg-zinc-800">
-            {poster ? (
-              <Image src={poster} alt={movie.title} fill sizes="192px" className="object-cover" />
-            ) : (
-              <div className="flex h-full items-center justify-center text-xs text-zinc-400">No poster</div>
-            )}
+          <div className="relative w-48 shrink-0">
+            <div className="relative aspect-[2/3] overflow-hidden rounded-lg bg-zinc-200 dark:bg-zinc-800">
+              {poster ? (
+                <Image src={poster} alt={movie.title} fill sizes="192px" className="object-cover" />
+              ) : (
+                <div className="flex h-full items-center justify-center text-xs text-zinc-400">No poster</div>
+              )}
+            </div>
+            <ProfitabilityBanner status={movie.profitability_status} />
           </div>
 
           <div className="flex flex-1 flex-col gap-3">
@@ -70,6 +74,10 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
               <dd className="text-zinc-900 dark:text-zinc-50">{formatUsd(movie.budget_usd)}</dd>
               <dt className="text-zinc-500 dark:text-zinc-400">Director</dt>
               <dd className="text-zinc-900 dark:text-zinc-50">{movie.director?.name ?? "Unknown"}</dd>
+              <dt className="text-zinc-500 dark:text-zinc-400">Domestic Gross</dt>
+              <dd className="text-zinc-900 dark:text-zinc-50">{formatUsd(movie.domestic_gross_usd)}</dd>
+              <dt className="text-zinc-500 dark:text-zinc-400">Worldwide Gross</dt>
+              <dd className="text-zinc-900 dark:text-zinc-50">{formatUsd(movie.worldwide_gross_usd)}</dd>
             </dl>
           </div>
         </div>

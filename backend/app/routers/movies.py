@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.etl.ingest_tmdb import upsert_movie_from_tmdb
-from app.etl.scrape_boxofficemojo import ingest_weekly_gross_from_boxofficemojo
+from app.etl.scrape_boxofficemojo import ingest_lifetime_grosses, ingest_weekly_gross_from_boxofficemojo
 from app.models import Movie
 from app.schemas.movie import (
     MovieBrowseRows,
@@ -17,6 +17,7 @@ from app.schemas.movie import (
     WeeklyGrossPoint,
 )
 from app.services.prediction_service import get_or_create_prediction
+from app.services.profitability import compute_profitability_status
 from app.services.tmdb_client import tmdb_client
 
 THIS_WEEK_LOOKAHEAD_DAYS = 14
@@ -117,6 +118,9 @@ def get_movie(tmdb_id: int, db: Session = Depends(get_db)) -> MovieDetail:
         except httpx.HTTPStatusError:
             raise HTTPException(status_code=404, detail="Movie not found")
 
+    if movie.status == "released":
+        movie = ingest_lifetime_grosses(db, movie)
+
     director = next((c for c in movie.credits if c.role == "director"), None)
     cast = sorted(
         (c for c in movie.credits if c.role == "actor"),
@@ -132,6 +136,9 @@ def get_movie(tmdb_id: int, db: Session = Depends(get_db)) -> MovieDetail:
         status=movie.status,
         runtime_minutes=movie.runtime_minutes,
         budget_usd=movie.budget_usd,
+        domestic_gross_usd=movie.domestic_gross_usd,
+        worldwide_gross_usd=movie.worldwide_gross_usd,
+        profitability_status=compute_profitability_status(movie.budget_usd, movie.worldwide_gross_usd),
         genres=movie.genres,
         poster_path=movie.poster_path,
         popularity_tmdb_snapshot=movie.popularity_tmdb_snapshot,

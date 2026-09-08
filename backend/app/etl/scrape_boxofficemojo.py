@@ -56,6 +56,35 @@ def _find_domestic_weekend_url(client: httpx.Client, imdb_id: str) -> str | None
     return f"{match.group(1)}/weekend/"
 
 
+def _fetch_lifetime_grosses(client: httpx.Client, imdb_id: str) -> tuple[int | None, int | None]:
+    """Returns (domestic, worldwide) lifetime gross from the movie's BOM title page summary."""
+    response = client.get(f"/title/{imdb_id}/")
+    if response.status_code != 200:
+        return None, None
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    summary = soup.find("div", class_="mojo-performance-summary-table")
+    if summary is None:
+        return None, None
+
+    domestic = worldwide = None
+    for row in summary.find_all("div", class_="a-section", recursive=False):
+        label = row.find("span", class_="a-size-small")
+        money = row.find("span", class_="money")
+        if label is None or money is None:
+            continue
+        label_text = label.get_text(strip=True)
+        value = _parse_money(money.get_text(strip=True))
+        if label_text.startswith("Domestic"):
+            domestic = value
+        elif label_text.startswith("Worldwide"):
+            worldwide = value
+
+    if worldwide is None:
+        worldwide = domestic  # domestic-only release, no international breakout on BOM
+    return domestic, worldwide
+
+
 def _fetch_weekend_rows(client: httpx.Client, weekend_url: str, release_year: int) -> list[dict]:
     response = client.get(weekend_url)
     response.raise_for_status()
@@ -161,3 +190,20 @@ def ingest_weekly_gross_from_boxofficemojo(db: Session, movie: Movie) -> list[We
     for obs in observations:
         db.refresh(obs)
     return observations
+
+
+def ingest_lifetime_grosses(db: Session, movie: Movie) -> Movie:
+    """Scrape and store a movie's lifetime domestic/worldwide gross from Box Office Mojo. Cached on the movie row."""
+    if movie.worldwide_gross_usd is not None or not movie.imdb_id:
+        return movie
+
+    with httpx.Client(base_url=BOM_BASE_URL, headers={"User-Agent": USER_AGENT}, timeout=10.0) as client:
+        domestic, worldwide = _fetch_lifetime_grosses(client, movie.imdb_id)
+
+    if domestic is not None:
+        movie.domestic_gross_usd = domestic
+    if worldwide is not None:
+        movie.worldwide_gross_usd = worldwide
+        db.commit()
+        db.refresh(movie)
+    return movie
