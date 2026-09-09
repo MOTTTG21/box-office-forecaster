@@ -9,9 +9,22 @@ the-fact value.
 from collections.abc import Callable
 from datetime import date
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import PredictionSnapshot
+
+
+def _existing_snapshot(db: Session, movie_id: int, week_number: int, today: date) -> PredictionSnapshot | None:
+    return (
+        db.query(PredictionSnapshot)
+        .filter(
+            PredictionSnapshot.movie_id == movie_id,
+            PredictionSnapshot.week_number == week_number,
+            PredictionSnapshot.snapshot_date == today,
+        )
+        .one_or_none()
+    )
 
 
 def get_or_record_snapshot(
@@ -25,17 +38,15 @@ def get_or_record_snapshot(
     computes it via `compute_prediction` (only called when needed - it's the expensive path,
     which may include a live news-research call), records it, and returns the predicted value.
     `compute_prediction` returns (predicted_value, news_reason) - the reason is stored but not
-    returned here; read it back via get_snapshot_history for the chart."""
+    returned here; read it back via get_snapshot_history for the chart.
+
+    Two concurrent requests can both see "no snapshot yet" and both compute + try to insert -
+    the second one to commit hits the unique constraint on (movie_id, week_number,
+    snapshot_date). Rather than 500 (which happened in production the first time this occurred),
+    treat that as a signal the other request already won: roll back the failed insert and
+    return the row it just committed instead of the value this request computed."""
     today = date.today()
-    existing = (
-        db.query(PredictionSnapshot)
-        .filter(
-            PredictionSnapshot.movie_id == movie_id,
-            PredictionSnapshot.week_number == week_number,
-            PredictionSnapshot.snapshot_date == today,
-        )
-        .one_or_none()
-    )
+    existing = _existing_snapshot(db, movie_id, week_number, today)
     if existing is not None:
         return existing.predicted_weekend_gross_usd
 
@@ -50,7 +61,12 @@ def get_or_record_snapshot(
             news_reason=reason,
         )
     )
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        winner = _existing_snapshot(db, movie_id, week_number, today)
+        return winner.predicted_weekend_gross_usd if winner else predicted
     return predicted
 
 
