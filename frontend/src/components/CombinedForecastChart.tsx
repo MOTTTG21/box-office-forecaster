@@ -242,6 +242,17 @@ export default function CombinedForecastChart({ entries }: { entries: Entry[] })
                 {poster && <Image src={poster} alt={movie.title} fill sizes="32px" className="object-cover" />}
               </div>
               <span className="line-clamp-1 flex-1 text-sm text-zinc-900 dark:text-zinc-50">{movie.title}</span>
+              {movie.has_audience_demographics && (
+                <span
+                  title="Audience demographics reported for this release"
+                  className="hidden shrink-0 text-zinc-400 dark:text-zinc-500 sm:inline-flex"
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2" />
+                    <path d="M6 1a5 5 0 0 1 4.33 7.5L6 6V1z" fill="currentColor" />
+                  </svg>
+                </span>
+              )}
               <span
                 className={`hidden rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide sm:inline ${tier.chip}`}
               >

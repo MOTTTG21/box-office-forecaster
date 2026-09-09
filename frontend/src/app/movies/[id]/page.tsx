@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getFranchiseComparison, getMovie, getWeeklyGross, getYearComparison, posterUrl } from "@/lib/api";
+import AudienceDemographics from "@/components/AudienceDemographics";
 import CompareSection from "@/components/CompareSection";
 import CriticScores from "@/components/CriticScores";
 import ProfitabilityBanner from "@/components/ProfitabilityBanner";
@@ -155,6 +156,8 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
             </div>
           </div>
         )}
+
+        <AudienceDemographics movie={movie} />
 
         <WeeklyGrossChart
           data={weeklyGross}

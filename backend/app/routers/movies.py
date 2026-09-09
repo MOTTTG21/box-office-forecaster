@@ -25,6 +25,7 @@ from app.schemas.movie import (
 )
 from app.services.box_office_calendar import current_box_office_week
 from app.services.comparison_service import get_franchise_comparison, get_same_year_comparison
+from app.services.demographics_service import ingest_audience_demographics
 from app.services.holiday_calendar import get_holiday_highlight
 from app.services.inflation import LATEST_CPI_YEAR, adjust_for_inflation
 from app.services.news_signal_service import apply_news_adjustment
@@ -123,6 +124,7 @@ def _new_release_entries(db: Session, today: date, window_start: date, window_en
             opening = next((o for o in observations if o.week_number == 1), None)
             if opening:
                 actual = opening.weekend_gross_usd
+            movie = ingest_audience_demographics(db, movie)
 
         entries.append(
             ThisWeekMovie(
@@ -135,6 +137,8 @@ def _new_release_entries(db: Session, today: date, window_start: date, window_en
                 predicted_weekend_gross_usd=predicted,
                 actual_weekend_gross_usd=actual,
                 previous_weekend_gross_usd=None,
+                has_audience_demographics=movie.demographics_checked_at is not None
+                and movie.demographic_percent_female is not None,
             )
         )
     return entries
@@ -331,6 +335,12 @@ def get_movie(request: Request, tmdb_id: int, db: Session = Depends(get_db)) -> 
         if show_inflation_adjusted
         else None,
         inflation_adjusted_to_year=LATEST_CPI_YEAR if show_inflation_adjusted else None,
+        demographic_percent_female=movie.demographic_percent_female,
+        demographic_percent_male=movie.demographic_percent_male,
+        demographic_percent_under_25=movie.demographic_percent_under_25,
+        demographic_percent_25_and_over=movie.demographic_percent_25_and_over,
+        demographic_race_breakdown=movie.demographic_race_breakdown,
+        demographic_source_note=movie.demographic_source_note,
     )
 
 

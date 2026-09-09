@@ -43,6 +43,11 @@ export interface PersonDetail {
   filmography: FilmographyItem[];
 }
 
+export interface RaceEthnicityGroup {
+  group: string;
+  percent: number;
+}
+
 export interface MovieDetail {
   id: number;
   tmdb_id: number;
@@ -67,6 +72,12 @@ export interface MovieDetail {
   domestic_gross_usd_inflation_adjusted: number | null;
   worldwide_gross_usd_inflation_adjusted: number | null;
   inflation_adjusted_to_year: number | null;
+  demographic_percent_female: number | null;
+  demographic_percent_male: number | null;
+  demographic_percent_under_25: number | null;
+  demographic_percent_25_and_over: number | null;
+  demographic_race_breakdown: RaceEthnicityGroup[] | null;
+  demographic_source_note: string | null;
 }
 
 export interface WeeklyGrossPoint {
@@ -94,6 +105,7 @@ export interface ThisWeekMovie {
   predicted_weekend_gross_usd: number | null;
   actual_weekend_gross_usd: number | null;
   previous_weekend_gross_usd: number | null;
+  has_audience_demographics: boolean;
 }
 
 export interface PredictionSnapshotPoint {

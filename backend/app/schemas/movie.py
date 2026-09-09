@@ -26,6 +26,11 @@ class PersonOut(BaseModel):
     character_name: str | None = None
 
 
+class RaceEthnicityGroup(BaseModel):
+    group: str
+    percent: float
+
+
 class MovieDetail(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -52,6 +57,12 @@ class MovieDetail(BaseModel):
     domestic_gross_usd_inflation_adjusted: int | None = None
     worldwide_gross_usd_inflation_adjusted: int | None = None
     inflation_adjusted_to_year: int | None = None
+    demographic_percent_female: float | None = None
+    demographic_percent_male: float | None = None
+    demographic_percent_under_25: float | None = None
+    demographic_percent_25_and_over: float | None = None
+    demographic_race_breakdown: list[RaceEthnicityGroup] | None = None
+    demographic_source_note: str | None = None
 
 
 class WeeklyGrossPoint(BaseModel):
@@ -81,6 +92,7 @@ class ThisWeekMovie(BaseModel):
     predicted_weekend_gross_usd: float | None = None
     actual_weekend_gross_usd: int | None = None
     previous_weekend_gross_usd: int | None = None
+    has_audience_demographics: bool = False
 
 
 class PredictionSnapshotPoint(BaseModel):
