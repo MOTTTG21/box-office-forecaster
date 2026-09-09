@@ -121,6 +121,18 @@ export interface ComparisonSeries {
   points: ComparisonPoint[];
 }
 
+export interface IndustryWeekPoint {
+  year: number;
+  week_start_date: string;
+  total_gross_usd: number | null;
+}
+
+export interface IndustryHealthComparison {
+  current_week_start: string;
+  current_week_end: string;
+  points: IndustryWeekPoint[];
+}
+
 export interface DataAnomaly {
   tmdb_id: number;
   title: string;

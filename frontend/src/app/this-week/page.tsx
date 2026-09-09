@@ -1,7 +1,8 @@
 import CombinedForecastChart from "@/components/CombinedForecastChart";
 import HolidayBadge from "@/components/HolidayBadge";
-import { getHolidayContext, getPredictionHistory, getThisWeek } from "@/lib/api";
-import { HolidayHighlight, PredictionHistory } from "@/lib/types";
+import IndustryHealthChart from "@/components/IndustryHealthChart";
+import { getHolidayContext, getIndustryHealth, getPredictionHistory, getThisWeek } from "@/lib/api";
+import { HolidayHighlight, IndustryHealthComparison, PredictionHistory } from "@/lib/types";
 
 export default async function ThisWeekPage() {
   const movies = await getThisWeek();
@@ -22,6 +23,13 @@ export default async function ThisWeekPage() {
     holiday = null;
   }
 
+  let industryHealth: IndustryHealthComparison | null = null;
+  try {
+    industryHealth = await getIndustryHealth();
+  } catch {
+    industryHealth = null;
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50 px-6 py-12 dark:bg-black">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
@@ -38,6 +46,8 @@ export default async function ThisWeekPage() {
         </div>
 
         <HolidayBadge holiday={holiday} />
+
+        {industryHealth && <IndustryHealthChart comparison={industryHealth} />}
 
         {movies.length === 0 ? (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">No movies found in this window.</p>

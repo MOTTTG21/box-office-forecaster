@@ -6,7 +6,7 @@ from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.config import settings
 from app.core.limiter import limiter
-from app.routers import data_quality, health, movies, people
+from app.routers import data_quality, health, industry, movies, people
 
 app = FastAPI(title="Box Office Forecaster API")
 
@@ -26,3 +26,4 @@ app.include_router(health.router)
 app.include_router(movies.router)
 app.include_router(people.router)
 app.include_router(data_quality.router)
+app.include_router(industry.router)

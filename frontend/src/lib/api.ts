@@ -2,6 +2,7 @@ import {
   ComparisonSeries,
   DataAnomaly,
   HolidayHighlight,
+  IndustryHealthComparison,
   MovieBrowseRows,
   MovieDetail,
   MovieSearchResult,
@@ -58,6 +59,14 @@ export async function getHolidayContext(): Promise<HolidayHighlight | null> {
   const res = await fetch(`${API_URL}/api/movies/this-week/holiday`, { next: { revalidate: 900 } });
   if (!res.ok) {
     throw new Error("Failed to load holiday context");
+  }
+  return res.json();
+}
+
+export async function getIndustryHealth(): Promise<IndustryHealthComparison> {
+  const res = await fetch(`${API_URL}/api/industry/weekly-health`, { next: { revalidate: 900 } });
+  if (!res.ok) {
+    throw new Error("Failed to load industry health comparison");
   }
   return res.json();
 }
