@@ -65,6 +65,12 @@ class WeeklyGrossPoint(BaseModel):
     rank: int | None = None
 
 
+class HolidayHighlight(BaseModel):
+    name: str
+    label: str
+    blurb: str
+
+
 class ThisWeekMovie(BaseModel):
     tmdb_id: int
     title: str

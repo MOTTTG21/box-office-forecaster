@@ -78,6 +78,12 @@ export interface WeeklyGrossPoint {
   rank: number | null;
 }
 
+export interface HolidayHighlight {
+  name: string;
+  label: string;
+  blurb: string;
+}
+
 export interface ThisWeekMovie {
   tmdb_id: number;
   title: string;

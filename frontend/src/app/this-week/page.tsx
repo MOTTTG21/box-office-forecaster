@@ -1,6 +1,7 @@
 import CombinedForecastChart from "@/components/CombinedForecastChart";
-import { getPredictionHistory, getThisWeek } from "@/lib/api";
-import { PredictionHistory } from "@/lib/types";
+import HolidayBadge from "@/components/HolidayBadge";
+import { getHolidayContext, getPredictionHistory, getThisWeek } from "@/lib/api";
+import { HolidayHighlight, PredictionHistory } from "@/lib/types";
 
 export default async function ThisWeekPage() {
   const movies = await getThisWeek();
@@ -13,6 +14,13 @@ export default async function ThisWeekPage() {
       }
     }),
   );
+
+  let holiday: HolidayHighlight | null = null;
+  try {
+    holiday = await getHolidayContext();
+  } catch {
+    holiday = null;
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50 px-6 py-12 dark:bg-black">
@@ -28,6 +36,8 @@ export default async function ThisWeekPage() {
             &ldquo;not enough data&rdquo; is expected for some titles.
           </p>
         </div>
+
+        <HolidayBadge holiday={holiday} />
 
         {movies.length === 0 ? (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">No movies found in this window.</p>

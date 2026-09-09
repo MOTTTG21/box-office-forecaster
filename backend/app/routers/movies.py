@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -13,6 +13,7 @@ from app.ml.decline_model import load_transitions_from_db, predict_next_weekend_
 from app.models import Movie, WeeklyGrossObservation
 from app.schemas.movie import (
     ComparisonSeries,
+    HolidayHighlight,
     MovieBrowseRows,
     MovieDetail,
     MovieSearchResult,
@@ -22,7 +23,9 @@ from app.schemas.movie import (
     ThisWeekMovie,
     WeeklyGrossPoint,
 )
+from app.services.box_office_calendar import current_box_office_week
 from app.services.comparison_service import get_franchise_comparison, get_same_year_comparison
+from app.services.holiday_calendar import get_holiday_highlight
 from app.services.inflation import LATEST_CPI_YEAR, adjust_for_inflation
 from app.services.news_signal_service import apply_news_adjustment
 from app.services.prediction_service import get_or_create_prediction
@@ -39,12 +42,6 @@ MIN_THEATRICAL_RUNTIME_MINUTES = 60
 
 router = APIRouter(prefix="/api/movies", tags=["movies"])
 
-
-def _current_box_office_week(today: date) -> tuple[date, date]:
-    """The box office week is Monday-Sunday (studios report official weekend numbers Sunday)."""
-    monday = today - timedelta(days=today.weekday())
-    sunday = monday + timedelta(days=6)
-    return monday, sunday
 
 BROWSE_ROW_PATHS = {
     "trending": "/trending/movie/week",
@@ -210,7 +207,7 @@ def this_week_movies(request: Request, db: Session = Depends(get_db)) -> list[Th
     releases (opening-weekend heuristic) and holdovers (leave-one-out decline model, see
     backend/app/ml/decline_model.py) ranked together by predicted gross, not just new releases."""
     today = date.today()
-    window_start, window_end = _current_box_office_week(today)
+    window_start, window_end = current_box_office_week(today)
 
     new_releases = _new_release_entries(db, today, window_start, window_end)
     holdovers = _holdover_entries(db, exclude_tmdb_ids={e.tmdb_id for e in new_releases})
@@ -218,6 +215,15 @@ def this_week_movies(request: Request, db: Session = Depends(get_db)) -> list[Th
     combined = new_releases + holdovers
     combined.sort(key=lambda e: e.actual_weekend_gross_usd or e.predicted_weekend_gross_usd or 0, reverse=True)
     return combined[:TOP_IN_THEATERS_LIMIT]
+
+
+@router.get("/this-week/holiday", response_model=HolidayHighlight | None)
+@limiter.limit(DEFAULT_RATE_LIMIT)
+def this_week_holiday(request: Request) -> HolidayHighlight | None:
+    """Whether the current box office week contains (or overlaps) a notable US holiday - kept
+    as its own endpoint, separate from /this-week, so that response shape never changes."""
+    window_start, window_end = current_box_office_week(date.today())
+    return get_holiday_highlight(window_start, window_end)
 
 
 @router.get("/{tmdb_id}/prediction-history", response_model=PredictionHistory | None)

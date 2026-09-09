@@ -1,6 +1,7 @@
 import {
   ComparisonSeries,
   DataAnomaly,
+  HolidayHighlight,
   MovieBrowseRows,
   MovieDetail,
   MovieSearchResult,
@@ -49,6 +50,14 @@ export async function getThisWeek(): Promise<ThisWeekMovie[]> {
   const res = await fetch(`${API_URL}/api/movies/this-week`, { next: { revalidate: 900 } });
   if (!res.ok) {
     throw new Error("Failed to load this week's movies");
+  }
+  return res.json();
+}
+
+export async function getHolidayContext(): Promise<HolidayHighlight | null> {
+  const res = await fetch(`${API_URL}/api/movies/this-week/holiday`, { next: { revalidate: 900 } });
+  if (!res.ok) {
+    throw new Error("Failed to load holiday context");
   }
   return res.json();
 }
