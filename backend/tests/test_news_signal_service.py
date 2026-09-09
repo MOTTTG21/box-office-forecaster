@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import httpx
 import pytest
 
@@ -48,6 +50,21 @@ def test_falls_back_to_base_prediction_when_claude_never_calls_the_tool(monkeypa
     adjusted, reason = apply_news_adjustment(100.0, "Some Movie")
     assert adjusted == 100.0
     assert reason is None
+
+
+def test_accepts_a_decimal_base_prediction_without_crashing(monkeypatch):
+    # real bug this guards against: new-release predictions come straight from a SQLAlchemy
+    # Numeric column (decimal.Decimal), not a plain float like holdover predictions - Decimal *
+    # float raises TypeError, which took /this-week down in production
+    monkeypatch.setattr(
+        anthropic_client_module.anthropic_client,
+        "research_news_adjustment",
+        lambda title: (10.0, "Trailer went viral this week."),
+    )
+    adjusted, reason = apply_news_adjustment(Decimal("100.0"), "Some Movie")
+    assert adjusted == pytest.approx(110.0)
+    assert isinstance(adjusted, float)
+    assert reason == "Trailer went viral this week."
 
 
 def test_falls_back_to_base_prediction_when_the_api_call_fails(monkeypatch):

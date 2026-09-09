@@ -27,9 +27,16 @@ MAX_ADJUSTMENT_PCT = 25.0
 
 def apply_news_adjustment(base_prediction: float | None, movie_title: str) -> tuple[float | None, str | None]:
     """Returns (adjusted_prediction, reason). Falls back to (base_prediction, None) unchanged
-    if the base prediction is unknown or the research call doesn't produce a usable result."""
+    if the base prediction is unknown or the research call doesn't produce a usable result.
+
+    base_prediction can arrive as a decimal.Decimal (new-release predictions come straight from
+    a SQLAlchemy Numeric column) or a plain float (holdover predictions, computed in Python) -
+    coerced to float up front so both paths do the same arithmetic. A real bug this guards
+    against: Decimal * float raises TypeError, which took the whole /this-week endpoint down in
+    production the first time a new release needed a fresh (uncached) snapshot computed."""
     if base_prediction is None:
         return None, None
+    base_prediction = float(base_prediction)
 
     try:
         result = anthropic_client.research_news_adjustment(movie_title)
