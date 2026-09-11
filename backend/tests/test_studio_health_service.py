@@ -1,6 +1,9 @@
+from sqlalchemy.exc import IntegrityError
+
 from app.models import Movie
-from app.services.studio_health_service import summarize_studio_slate
+from app.services.studio_health_service import _discover_and_upsert_slate, summarize_studio_slate
 from app.services.studio_registry import get_studio
+from app.services.tmdb_client import tmdb_client
 
 
 def _movie(*, budget_usd=None, worldwide_gross_usd=None, runtime_minutes=120) -> Movie:
@@ -73,3 +76,48 @@ def test_summary_carries_the_studios_display_name_and_ticker():
     assert summary.slug == "a24"
     assert summary.display_name == "A24"
     assert summary.ticker is None
+
+
+class _FakeQuery:
+    def __init__(self, result):
+        self._result = result
+
+    def filter(self, *args, **kwargs):
+        return self
+
+    def one_or_none(self):
+        return self._result
+
+
+class _ConcurrentInsertSession:
+    """Simulates a real production incident (3 real 500s found in Railway logs on
+    /api/studios/slate?year=2026): the existence check finds nothing, but another concurrent
+    request already inserted the same tmdb_id by the time this one tries to."""
+
+    def __init__(self):
+        self.rolled_back = False
+
+    def query(self, _model):
+        return _FakeQuery(None)  # "doesn't exist yet" on every check in this test
+
+    def rollback(self):
+        self.rolled_back = True
+
+
+def test_a_concurrent_insert_of_the_same_movie_is_recovered_not_crashed(monkeypatch):
+    monkeypatch.setattr(
+        tmdb_client, "discover_movies_by_company_and_year", lambda company_id, start, end: [{"id": 999}]
+    )
+
+    def _raise_integrity_error(db, tmdb_id):
+        raise IntegrityError("duplicate key", params=None, orig=Exception("duplicate key"))
+
+    monkeypatch.setattr(
+        "app.services.studio_health_service.upsert_movie_from_tmdb", _raise_integrity_error
+    )
+
+    session = _ConcurrentInsertSession()
+
+    _discover_and_upsert_slate(session, tmdb_company_ids=(2,), year=2026)  # must not raise
+
+    assert session.rolled_back is True

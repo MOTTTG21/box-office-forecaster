@@ -15,6 +15,7 @@ instead of by this week's release window.
 from datetime import date
 
 import httpx
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.etl.ingest_tmdb import upsert_movie_from_tmdb
@@ -48,6 +49,13 @@ def _discover_and_upsert_slate(db: Session, tmdb_company_ids: tuple[int, ...], y
             try:
                 upsert_movie_from_tmdb(db, tmdb_id)
             except httpx.HTTPStatusError:
+                continue
+            except IntegrityError:
+                # a concurrent request (a real one found live in Railway logs: 3 real 500s on
+                # /api/studios/slate?year=2026, the current year, where new inserts are still
+                # happening) already inserted this tmdb_id between our check above and our
+                # insert - it exists now, which is all we need.
+                db.rollback()
                 continue
 
 
