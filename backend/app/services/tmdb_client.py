@@ -62,5 +62,20 @@ class TMDBClient:
         response.raise_for_status()
         return response.json()["results"]
 
+    def discover_movies_by_company_and_year(self, company_id: int, start_date: str, end_date: str) -> list[dict]:
+        response = self._client.get(
+            "/discover/movie",
+            params={
+                "region": "US",
+                "sort_by": "primary_release_date.asc",
+                "with_release_type": "2|3",
+                "with_companies": company_id,
+                "primary_release_date.gte": start_date,
+                "primary_release_date.lte": end_date,
+            },
+        )
+        response.raise_for_status()
+        return response.json()["results"]
+
 
 tmdb_client = TMDBClient()

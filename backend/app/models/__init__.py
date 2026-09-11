@@ -6,6 +6,7 @@ from app.models.movie import Movie
 from app.models.person import Person
 from app.models.prediction import Prediction
 from app.models.prediction_snapshot import PredictionSnapshot
+from app.models.studio_stock_price import StudioStockPrice
 from app.models.weekly_gross import WeeklyGrossObservation
 
 __all__ = [
@@ -17,5 +18,6 @@ __all__ = [
     "Person",
     "Prediction",
     "PredictionSnapshot",
+    "StudioStockPrice",
     "WeeklyGrossObservation",
 ]

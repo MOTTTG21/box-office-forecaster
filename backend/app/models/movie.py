@@ -40,6 +40,7 @@ class Movie(Base):
     demographic_race_breakdown: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     demographic_source_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     demographics_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    studio_slug: Mapped[str | None] = mapped_column(String(30), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

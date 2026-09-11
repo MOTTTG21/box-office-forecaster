@@ -16,5 +16,6 @@ DEFAULT_RATE_LIMIT = "100/minute"
 SEARCH_RATE_LIMIT = "20/minute"
 LOOKUP_RATE_LIMIT = "30/minute"
 DATA_QUALITY_RATE_LIMIT = "10/minute"
+STUDIO_RATE_LIMIT = "10/minute"
 
 limiter = Limiter(key_func=get_remote_address, default_limits=[DEFAULT_RATE_LIMIT])

@@ -9,6 +9,8 @@ import {
   PersonDetail,
   PersonSearchResult,
   PredictionHistory,
+  StudioMarketComparison,
+  StudioSlateReport,
   ThisWeekMovie,
   WeeklyGrossPoint,
 } from "./types";
@@ -115,6 +117,24 @@ export async function getDataAnomalies(): Promise<DataAnomaly[]> {
   const res = await fetch(`${API_URL}/api/data-quality`, { cache: "no-store" });
   if (!res.ok) {
     throw new Error("Failed to load data quality report");
+  }
+  return res.json();
+}
+
+export async function getStudioSlate(year: number): Promise<StudioSlateReport> {
+  const res = await fetch(`${API_URL}/api/studios/slate?year=${year}`, { next: { revalidate: 3600 } });
+  if (!res.ok) {
+    throw new Error("Failed to load studio slate");
+  }
+  return res.json();
+}
+
+export async function getStudioMarketComparison(slug: string, year: number): Promise<StudioMarketComparison> {
+  const res = await fetch(`${API_URL}/api/studios/${slug}/market-comparison?year=${year}`, {
+    next: { revalidate: 3600 },
+  });
+  if (!res.ok) {
+    throw new Error("Failed to load studio market comparison");
   }
   return res.json();
 }

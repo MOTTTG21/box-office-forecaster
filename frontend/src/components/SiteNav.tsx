@@ -19,6 +19,12 @@ export default function SiteNav() {
         This Week
       </Link>
       <Link
+        href="/studios"
+        className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+      >
+        Studios
+      </Link>
+      <Link
         href="/data-quality"
         className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
       >

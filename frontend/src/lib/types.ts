@@ -155,3 +155,33 @@ export interface DataAnomaly {
   ai_explanation: string | null;
   detected_at: string;
 }
+
+export interface StudioSlateSummary {
+  slug: string;
+  display_name: string;
+  ticker: string | null;
+  release_count: number;
+  movies_with_data: number;
+  total_budget_usd: number | null;
+  total_worldwide_gross_usd: number | null;
+  estimated_profit_usd: number | null;
+}
+
+export interface StudioSlateReport {
+  year: number;
+  studios: StudioSlateSummary[];
+}
+
+export interface StudioMarketPoint {
+  week_start_date: string;
+  box_office_pct_change: number | null;
+  stock_pct_change: number | null;
+}
+
+export interface StudioMarketComparison {
+  slug: string;
+  display_name: string;
+  ticker: string | null;
+  year: number;
+  points: StudioMarketPoint[];
+}

@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.models import Movie, MovieCredit, Person
+from app.services.studio_registry import match_studio_slug
 from app.services.tmdb_client import tmdb_client
 
 TOP_CAST_LIMIT = 10
@@ -34,6 +35,7 @@ def upsert_movie_from_tmdb(db: Session, tmdb_id: int) -> Movie:
     movie.poster_path = data.get("poster_path")
     movie.popularity_tmdb_snapshot = data.get("popularity")
     movie.popularity_snapshot_at = datetime.now(timezone.utc)
+    movie.studio_slug = match_studio_slug(data.get("production_companies", []))
 
     db.flush()  # need movie.id before writing credits below
 

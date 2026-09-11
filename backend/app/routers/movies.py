@@ -36,10 +36,10 @@ from app.services.prediction_snapshot_service import (
     get_snapshot_history,
 )
 from app.services.profitability import compute_profitability_status
+from app.services.theatrical_release import is_real_theatrical_release
 from app.services.tmdb_client import tmdb_client
 
 TOP_IN_THEATERS_LIMIT = 10
-MIN_THEATRICAL_RUNTIME_MINUTES = 60
 
 router = APIRouter(prefix="/api/movies", tags=["movies"])
 
@@ -78,13 +78,6 @@ def browse_movies(request: Request) -> MovieBrowseRows:
     )
 
 
-def _is_real_theatrical_release(movie: Movie) -> bool:
-    # TMDB's release-type filter still lets through TV specials that got a token
-    # theatrical qualifying run (e.g. a 50-minute streaming special) - these aren't
-    # real wide releases and have no meaningful box office trajectory to predict.
-    return movie.runtime_minutes is None or movie.runtime_minutes >= MIN_THEATRICAL_RUNTIME_MINUTES
-
-
 def _new_release_entries(db: Session, today: date, window_start: date, window_end: date) -> list[ThisWeekMovie]:
     candidates = tmdb_client.discover_movies_by_date_range(window_start.isoformat(), window_end.isoformat())
 
@@ -104,7 +97,7 @@ def _new_release_entries(db: Session, today: date, window_start: date, window_en
             except httpx.HTTPStatusError:
                 continue
 
-        if not _is_real_theatrical_release(movie):
+        if not is_real_theatrical_release(movie):
             continue
 
         prediction = get_or_create_prediction(db, movie)
@@ -160,7 +153,7 @@ def _holdover_entries(db: Session, exclude_tmdb_ids: set[int]) -> list[ThisWeekM
             except httpx.HTTPStatusError:
                 continue
 
-        if movie.status != "released" or not _is_real_theatrical_release(movie):
+        if movie.status != "released" or not is_real_theatrical_release(movie):
             continue
 
         observations = ingest_weekly_gross_from_boxofficemojo(db, movie)

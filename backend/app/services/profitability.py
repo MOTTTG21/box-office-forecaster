@@ -15,3 +15,14 @@ def compute_profitability_status(budget_usd: int | None, worldwide_gross_usd: in
     if multiple < PROFIT_MULTIPLE_FOR_SUCCESS:
         return "flop"
     return "success"
+
+
+def estimate_profit_usd(budget_usd: int | None, worldwide_gross_usd: int | None) -> int | None:
+    """A rough net-profit estimate using the same 2.5x breakeven rule as
+    compute_profitability_status, just expressed in dollars instead of a bomb/flop/success
+    label - not a number a studio would actually report, and never mixed with real reported
+    figures without saying so.
+    """
+    if not budget_usd or worldwide_gross_usd is None:
+        return None
+    return round(worldwide_gross_usd - budget_usd * PROFIT_MULTIPLE_FOR_SUCCESS)
