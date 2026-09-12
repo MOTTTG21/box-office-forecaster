@@ -36,6 +36,7 @@ from app.services.prediction_snapshot_service import (
     get_snapshot_history,
 )
 from app.services.profitability import compute_profitability_status
+from app.services.studio_registry import get_studio
 from app.services.theatrical_release import is_real_theatrical_release
 from app.services.tmdb_client import tmdb_client
 
@@ -334,6 +335,8 @@ def get_movie(request: Request, tmdb_id: int, db: Session = Depends(get_db)) -> 
         demographic_percent_25_and_over=movie.demographic_percent_25_and_over,
         demographic_race_breakdown=movie.demographic_race_breakdown,
         demographic_source_note=movie.demographic_source_note,
+        studio_slug=movie.studio_slug,
+        studio_display_name=get_studio(movie.studio_slug).display_name if movie.studio_slug else None,
     )
 
 

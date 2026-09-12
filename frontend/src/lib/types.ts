@@ -78,6 +78,8 @@ export interface MovieDetail {
   demographic_percent_25_and_over: number | null;
   demographic_race_breakdown: RaceEthnicityGroup[] | null;
   demographic_source_note: string | null;
+  studio_slug: string | null;
+  studio_display_name: string | null;
 }
 
 export interface WeeklyGrossPoint {
@@ -156,6 +158,12 @@ export interface DataAnomaly {
   detected_at: string;
 }
 
+export interface StudioSlateMovie {
+  tmdb_id: number;
+  title: string;
+  poster_path: string | null;
+}
+
 export interface StudioSlateSummary {
   slug: string;
   display_name: string;
@@ -165,6 +173,7 @@ export interface StudioSlateSummary {
   total_budget_usd: number | null;
   total_worldwide_gross_usd: number | null;
   estimated_profit_usd: number | null;
+  movies: StudioSlateMovie[];
 }
 
 export interface StudioSlateReport {

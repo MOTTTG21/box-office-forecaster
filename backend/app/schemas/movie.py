@@ -63,6 +63,8 @@ class MovieDetail(BaseModel):
     demographic_percent_25_and_over: float | None = None
     demographic_race_breakdown: list[RaceEthnicityGroup] | None = None
     demographic_source_note: str | None = None
+    studio_slug: str | None = None
+    studio_display_name: str | None = None
 
 
 class WeeklyGrossPoint(BaseModel):

@@ -3,6 +3,12 @@ from datetime import date
 from pydantic import BaseModel
 
 
+class StudioSlateMovie(BaseModel):
+    tmdb_id: int
+    title: str
+    poster_path: str | None = None
+
+
 class StudioSlateSummary(BaseModel):
     slug: str
     display_name: str
@@ -12,6 +18,7 @@ class StudioSlateSummary(BaseModel):
     total_budget_usd: int | None = None
     total_worldwide_gross_usd: int | None = None
     estimated_profit_usd: int | None = None
+    movies: list[StudioSlateMovie] = []
 
 
 class StudioSlateReport(BaseModel):

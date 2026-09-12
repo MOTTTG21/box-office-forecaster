@@ -115,6 +115,19 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
                   "Unknown"
                 )}
               </dd>
+              {movie.studio_display_name && (
+                <>
+                  <dt className="text-zinc-500 dark:text-zinc-400">Studio</dt>
+                  <dd className="text-zinc-900 dark:text-zinc-50">
+                    <Link
+                      href={`/studios?year=${movie.release_date?.slice(0, 4) ?? new Date().getFullYear()}`}
+                      className="hover:underline"
+                    >
+                      {movie.studio_display_name}
+                    </Link>
+                  </dd>
+                </>
+              )}
               <dt className="text-zinc-500 dark:text-zinc-400">Domestic Gross</dt>
               <dd className="text-zinc-900 dark:text-zinc-50">
                 {formatUsd(movie.domestic_gross_usd)}

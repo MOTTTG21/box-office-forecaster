@@ -1,3 +1,5 @@
+from datetime import date
+
 from sqlalchemy.exc import IntegrityError
 
 from app.models import Movie
@@ -5,10 +7,23 @@ from app.services.studio_health_service import _discover_and_upsert_slate, summa
 from app.services.studio_registry import get_studio
 from app.services.tmdb_client import tmdb_client
 
+_next_tmdb_id = iter(range(1, 10_000))
 
-def _movie(*, budget_usd=None, worldwide_gross_usd=None, runtime_minutes=120) -> Movie:
+
+def _movie(
+    *,
+    budget_usd=None,
+    worldwide_gross_usd=None,
+    runtime_minutes=120,
+    title="Test Movie",
+    poster_path=None,
+    release_date=None,
+) -> Movie:
     return Movie(
-        title="Test Movie",
+        tmdb_id=next(_next_tmdb_id),
+        title=title,
+        poster_path=poster_path,
+        release_date=release_date,
         budget_usd=budget_usd,
         worldwide_gross_usd=worldwide_gross_usd,
         runtime_minutes=runtime_minutes,
@@ -76,6 +91,27 @@ def test_summary_carries_the_studios_display_name_and_ticker():
     assert summary.slug == "a24"
     assert summary.display_name == "A24"
     assert summary.ticker is None
+
+
+def test_movies_are_included_sorted_by_release_date_for_cross_linking():
+    disney = get_studio("disney")
+    later = _movie(title="Later Movie", poster_path="/later.jpg", release_date=date(2026, 6, 1))
+    earlier = _movie(title="Earlier Movie", poster_path="/earlier.jpg", release_date=date(2026, 1, 1))
+
+    summary = summarize_studio_slate(disney, [later, earlier])
+
+    assert [m.title for m in summary.movies] == ["Earlier Movie", "Later Movie"]
+    assert summary.movies[0].poster_path == "/earlier.jpg"
+    assert summary.movies[0].tmdb_id == earlier.tmdb_id
+
+
+def test_a_movie_with_no_release_date_does_not_crash_the_sort():
+    disney = get_studio("disney")
+    movies = [_movie(release_date=None), _movie(release_date=date(2026, 1, 1))]
+
+    summary = summarize_studio_slate(disney, movies)
+
+    assert len(summary.movies) == 2
 
 
 class _FakeQuery:
