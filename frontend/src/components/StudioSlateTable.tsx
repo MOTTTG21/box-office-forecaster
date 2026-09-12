@@ -66,6 +66,9 @@ export default function StudioSlateTable({ studios, year }: { studios: StudioSla
           <tbody>
             {sorted.map((studio) => {
               const isExpanded = expanded.has(studio.slug);
+              // Defensive against a stale cached response predating this field (see the
+              // studio-slate loading-error incident): treat a missing list as empty, not a crash.
+              const movies = studio.movies ?? [];
               return (
                 <Fragment key={studio.slug}>
                   <tr className="border-b border-zinc-100 last:border-0 dark:border-zinc-900">
@@ -73,10 +76,10 @@ export default function StudioSlateTable({ studios, year }: { studios: StudioSla
                       <button
                         type="button"
                         onClick={() => toggle(studio.slug)}
-                        disabled={studio.movies.length === 0}
+                        disabled={movies.length === 0}
                         className="touch-manipulation flex items-center gap-1.5 py-1 text-left disabled:cursor-default"
                       >
-                        {studio.movies.length > 0 && (
+                        {movies.length > 0 && (
                           <span className="text-zinc-400 dark:text-zinc-500">{isExpanded ? "▾" : "▸"}</span>
                         )}
                         <span>{studio.display_name}</span>
@@ -108,7 +111,7 @@ export default function StudioSlateTable({ studios, year }: { studios: StudioSla
                     <tr className="border-b border-zinc-100 dark:border-zinc-900">
                       <td colSpan={5} className="py-3">
                         <div className="flex flex-wrap gap-3">
-                          {studio.movies.map((movie) => {
+                          {movies.map((movie) => {
                             const poster = posterUrl(movie.poster_path, "w185");
                             return (
                               <Link
