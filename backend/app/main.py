@@ -5,6 +5,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.config import settings
+from app.core.latency_middleware import LatencyTrackingMiddleware
 from app.core.limiter import limiter
 from app.routers import data_quality, health, industry, movies, people, studios
 
@@ -12,6 +13,7 @@ app = FastAPI(title="Box Office Forecaster API")
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(LatencyTrackingMiddleware)
 app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(

@@ -1,8 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { getDataAnomalies, posterUrl } from "@/lib/api";
-import { DataAnomaly } from "@/lib/types";
+import LatencyReportSection from "@/components/LatencyReport";
+import { getDataAnomalies, getLatencyReport, posterUrl } from "@/lib/api";
+import { DataAnomaly, LatencyReport } from "@/lib/types";
 
 const SEVERITY_STYLES: Record<DataAnomaly["severity"], string> = {
   high: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
@@ -21,6 +22,13 @@ export default async function DataQualityPage() {
     anomalies = await getDataAnomalies();
   } catch {
     loadError = true;
+  }
+
+  let latencyReport: LatencyReport | null = null;
+  try {
+    latencyReport = await getLatencyReport();
+  } catch {
+    latencyReport = null;
   }
 
   return (
@@ -81,6 +89,12 @@ export default async function DataQualityPage() {
             );
           })}
         </div>
+
+        {latencyReport && (
+          <div className="flex flex-col gap-6 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+            <LatencyReportSection report={latencyReport} />
+          </div>
+        )}
       </div>
     </div>
   );

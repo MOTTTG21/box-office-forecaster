@@ -3,6 +3,7 @@ import {
   DataAnomaly,
   HolidayHighlight,
   IndustryHealthComparison,
+  LatencyReport,
   MovieBrowseRows,
   MovieDetail,
   MovieSearchResult,
@@ -117,6 +118,14 @@ export async function getDataAnomalies(): Promise<DataAnomaly[]> {
   const res = await fetch(`${API_URL}/api/data-quality`, { cache: "no-store" });
   if (!res.ok) {
     throw new Error("Failed to load data quality report");
+  }
+  return res.json();
+}
+
+export async function getLatencyReport(): Promise<LatencyReport> {
+  const res = await fetch(`${API_URL}/api/data-quality/latency`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error("Failed to load latency report");
   }
   return res.json();
 }

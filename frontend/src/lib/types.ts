@@ -158,6 +158,21 @@ export interface DataAnomaly {
   detected_at: string;
 }
 
+export interface EndpointLatencyStats {
+  method: string;
+  route_template: string;
+  sample_count: number;
+  p50_ms: number;
+  p95_ms: number;
+  p99_ms: number;
+}
+
+export interface LatencyReport {
+  retention_days: number;
+  min_samples: number;
+  endpoints: EndpointLatencyStats[];
+}
+
 export interface StudioSlateMovie {
   tmdb_id: number;
   title: string;
