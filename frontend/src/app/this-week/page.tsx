@@ -45,14 +45,20 @@ export default async function ThisWeekPage() {
           </p>
         </div>
 
-        <HolidayBadge holiday={holiday} />
-
-        {industryHealth && <IndustryHealthChart comparison={industryHealth} />}
-
         {movies.length === 0 ? (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">No movies found in this window.</p>
         ) : (
           <CombinedForecastChart entries={movies.map((movie, index) => ({ movie, history: histories[index] }))} />
+        )}
+
+        {(holiday || industryHealth) && (
+          <div className="flex flex-col gap-6 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+            <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+              Context for this week
+            </h2>
+            <HolidayBadge holiday={holiday} />
+            {industryHealth && <IndustryHealthChart comparison={industryHealth} />}
+          </div>
         )}
       </div>
     </div>
