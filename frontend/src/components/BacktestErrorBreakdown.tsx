@@ -14,6 +14,7 @@ export default function BacktestErrorBreakdown({ report }: { report: BacktestRep
 
   const director = report.by_comp_method.find((g) => g.label === "director");
   const genre = report.by_comp_method.find((g) => g.label === "genre");
+  const year2020 = report.by_release_year.find((g) => g.label === "2020");
 
   return (
     <div className={`flex flex-col gap-4 ${CHART_VARS}`}>
@@ -73,10 +74,13 @@ export default function BacktestErrorBreakdown({ report }: { report: BacktestRep
               <Bar dataKey="median_abs_pct_error" fill="var(--bar)" radius={[4, 4, 0, 0]} maxBarSize={32} />
             </BarChart>
           </ResponsiveContainer>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            2020&apos;s spike is real, not a bug &mdash; pandemic-era theatrical releases broke every historical
-            comp a heuristic like this leans on.
-          </p>
+          {year2020 && (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              2020&apos;s {year2020.median_abs_pct_error}% is real, not a bug &mdash; pandemic-era theatrical
+              releases (day-and-date streaming, reduced capacity) broke every historical comp a heuristic like
+              this leans on.
+            </p>
+          )}
         </div>
       )}
     </div>
