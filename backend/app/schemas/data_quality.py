@@ -40,3 +40,17 @@ class CircuitBreakerStatus(BaseModel):
 
 class ReliabilityReport(BaseModel):
     services: list[CircuitBreakerStatus]
+
+
+class ErrorByGroup(BaseModel):
+    label: str
+    sample_count: int
+    median_abs_pct_error: float
+
+
+class BacktestReport(BaseModel):
+    computed_at: datetime | None = None
+    sample_count: int
+    overall_median_abs_pct_error: float | None = None
+    by_comp_method: list[ErrorByGroup]
+    by_release_year: list[ErrorByGroup]

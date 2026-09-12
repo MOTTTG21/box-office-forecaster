@@ -1,3 +1,4 @@
+from app.models.backtest_prediction import BacktestPrediction
 from app.models.credit import MovieCredit
 from app.models.data_anomaly import DataAnomaly
 from app.models.industry_weekly_gross import IndustryWeeklyGross
@@ -11,6 +12,7 @@ from app.models.studio_stock_price import StudioStockPrice
 from app.models.weekly_gross import WeeklyGrossObservation
 
 __all__ = [
+    "BacktestPrediction",
     "DataAnomaly",
     "IndustryWeeklyGross",
     "ModelRun",

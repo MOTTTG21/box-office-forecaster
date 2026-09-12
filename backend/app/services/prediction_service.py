@@ -65,7 +65,10 @@ def _backfill_director_history(db: Session, director: Person, exclude_tmdb_id: i
             except httpx.HTTPError:
                 continue
         if movie.status == "released":
-            ingest_weekly_gross_from_boxofficemojo(db, movie)
+            try:
+                ingest_weekly_gross_from_boxofficemojo(db, movie)
+            except httpx.HTTPError:
+                continue
 
 
 def _budget_scaled_average(rows: list[tuple[int | None, int | None]], target_budget_usd: int | None) -> float | None:
@@ -128,7 +131,12 @@ def _genre_opening_weekend(
     return _budget_scaled_average(rows, target_budget_usd)
 
 
-def _compute_predicted_opening_weekend(db: Session, movie: Movie) -> float | None:
+def _compute_predicted_opening_weekend_with_method(db: Session, movie: Movie) -> tuple[float | None, str]:
+    """Returns (prediction, comp_method) - "director" or "genre" for whichever comp pool actually
+    produced a number, "none" if neither could. The method is only consumed by the backtest
+    (app/ml/evaluate.py), to break error down by which fallback tier a prediction came from;
+    the live prediction path below doesn't need it, just the number.
+    """
     director_credit = next((c for c in movie.credits if c.role == "director"), None)
     predicted = None
     if director_credit is not None:
@@ -136,12 +144,18 @@ def _compute_predicted_opening_weekend(db: Session, movie: Movie) -> float | Non
         predicted = _director_opening_weekend(
             db, director_credit.person_id, exclude_movie_id=movie.id, target_budget_usd=movie.budget_usd
         )
+        if predicted is not None:
+            return predicted, "director"
 
-    if predicted is None:
-        predicted = _genre_opening_weekend(
-            db, movie.genres, exclude_movie_id=movie.id, target_budget_usd=movie.budget_usd
-        )
+    predicted = _genre_opening_weekend(db, movie.genres, exclude_movie_id=movie.id, target_budget_usd=movie.budget_usd)
+    if predicted is not None:
+        return predicted, "genre"
 
+    return None, "none"
+
+
+def _compute_predicted_opening_weekend(db: Session, movie: Movie) -> float | None:
+    predicted, _method = _compute_predicted_opening_weekend_with_method(db, movie)
     return predicted
 
 

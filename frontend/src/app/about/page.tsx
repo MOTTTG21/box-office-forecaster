@@ -1,4 +1,15 @@
-export default function AboutPage() {
+import BacktestErrorBreakdown from "@/components/BacktestErrorBreakdown";
+import { getBacktestReport } from "@/lib/api";
+import { BacktestReport } from "@/lib/types";
+
+export default async function AboutPage() {
+  let backtestReport: BacktestReport | null = null;
+  try {
+    backtestReport = await getBacktestReport();
+  } catch {
+    backtestReport = null;
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50 px-6 py-12 dark:bg-black">
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
@@ -33,7 +44,7 @@ export default function AboutPage() {
           </p>
         </section>
 
-        <section className="flex flex-col gap-2">
+        <section className="flex flex-col gap-3">
           <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">How the forecast works — and how well it works</h2>
           <p>
             The opening-weekend prediction on the This Week tab is a simple idea: look at a director&apos;s past
@@ -43,17 +54,24 @@ export default function AboutPage() {
             enough data&rdquo; rather than a made-up number.
           </p>
           <p>
-            I don&apos;t just claim this works — I tested it. Every prediction the model would have made for movies
-            already in the database (leaving each movie out of its own comparison, so it&apos;s not cheating) gets
-            checked against what actually happened. That backtest is scored only against movies that themselves
-            opened wide (600+ theaters) — that&apos;s the population &ldquo;This Week&rdquo; actually predicts for.
-            The database also holds smaller limited-release films that only got in via a director&apos;s
-            auto-backfilled history, and no amount of comp-selection can fix a prediction for a film that was never
-            going to open wide in the first place — including those would dilute the number with an unrelated,
-            unsolvable case rather than make it more honest. Scored that way, the model&apos;s predictions are off
-            by a median of about 67%. That&apos;s a heuristic — an educated guess built from historical averages —
-            not a trained model, and this is an honest number, not a polished one.
+            I don&apos;t just claim this works — I tested it, and re-test it as the database grows. Every
+            prediction the model would have made for movies already in the database (leaving each movie out of its
+            own comparison, so it&apos;s not cheating) gets checked against what actually happened. That backtest
+            is scored only against movies that themselves opened wide (600+ theaters) — that&apos;s the population
+            &ldquo;This Week&rdquo; actually predicts for. The database also holds smaller limited-release films
+            that only got in via a director&apos;s auto-backfilled history, and no amount of comp-selection can fix
+            a prediction for a film that was never going to open wide in the first place — including those would
+            dilute the number with an unrelated, unsolvable case rather than make it more honest. That&apos;s a
+            heuristic — an educated guess built from historical averages — not a trained model, and the number
+            below is an honest one, not a polished one.
           </p>
+
+          {backtestReport && (
+            <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+              <BacktestErrorBreakdown report={backtestReport} />
+            </div>
+          )}
+
           <p>
             I also checked whether a film&apos;s critic score (Rotten Tomatoes) would help explain the model&apos;s
             misses, since that seemed like an obvious next signal. It doesn&apos;t, really — the correlation between

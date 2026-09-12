@@ -1,4 +1,7 @@
-from app.services.prediction_service import _budget_scaled_average
+import httpx
+
+from app.models import Movie, Person
+from app.services.prediction_service import _backfill_director_history, _budget_scaled_average
 
 
 def test_scales_comp_by_budget_ratio():
@@ -39,3 +42,50 @@ def test_returns_none_with_no_rows():
 def test_skips_rows_with_missing_weekend_gross():
     rows = [(None, 10_000_000), (20_000_000, 10_000_000)]
     assert _budget_scaled_average(rows, target_budget_usd=10_000_000) == 20_000_000
+
+
+class _FakeQuery:
+    def __init__(self, result):
+        self._result = result
+
+    def filter(self, *args, **kwargs):
+        return self
+
+    def one_or_none(self):
+        return self._result
+
+
+class _FakeSession:
+    def __init__(self, movie):
+        self._movie = movie
+
+    def query(self, _model):
+        return _FakeQuery(self._movie)
+
+
+def test_a_real_box_office_mojo_failure_does_not_crash_the_whole_backfill(monkeypatch):
+    """Regression test for a real incident hit while running the backtest script: Box Office
+    Mojo returned a genuine 503, and the weekly-gross scrape for one prior film in a director's
+    back-catalog had no try/except - it crashed the entire prediction (and would have crashed
+    the live movie-detail/This Week request path too, not just the offline backtest)."""
+    existing_movie = Movie(tmdb_id=999, title="A Prior Film", status="released")
+
+    monkeypatch.setattr(
+        "app.services.prediction_service.tmdb_client.get_person_movie_credits",
+        lambda person_tmdb_id: {
+            "crew": [{"job": "Director", "id": 999, "release_date": "2020-01-01"}],
+        },
+    )
+
+    def _raise_503(db, movie):
+        raise httpx.HTTPStatusError("503", request=None, response=None)
+
+    monkeypatch.setattr(
+        "app.services.prediction_service.ingest_weekly_gross_from_boxofficemojo", _raise_503
+    )
+
+    director = Person(tmdb_id=123, name="A Director")
+    session = _FakeSession(existing_movie)
+
+    # must not raise
+    _backfill_director_history(session, director, exclude_tmdb_id=1)

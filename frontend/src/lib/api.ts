@@ -1,4 +1,5 @@
 import {
+  BacktestReport,
   ComparisonSeries,
   DataAnomaly,
   HolidayHighlight,
@@ -135,6 +136,16 @@ export async function getReliabilityReport(): Promise<ReliabilityReport> {
   const res = await fetch(`${API_URL}/api/data-quality/reliability`, { cache: "no-store" });
   if (!res.ok) {
     throw new Error("Failed to load reliability report");
+  }
+  return res.json();
+}
+
+export async function getBacktestReport(): Promise<BacktestReport> {
+  // Only changes when the backtest script is re-run manually (see app/ml/evaluate.py), never
+  // on request - safe to cache far longer than the other Data Quality endpoints.
+  const res = await fetch(`${API_URL}/api/data-quality/backtest`, { next: { revalidate: 3600 } });
+  if (!res.ok) {
+    throw new Error("Failed to load backtest report");
   }
   return res.json();
 }

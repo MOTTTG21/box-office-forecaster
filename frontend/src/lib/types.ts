@@ -186,6 +186,20 @@ export interface ReliabilityReport {
   services: CircuitBreakerStatus[];
 }
 
+export interface ErrorByGroup {
+  label: string;
+  sample_count: number;
+  median_abs_pct_error: number;
+}
+
+export interface BacktestReport {
+  computed_at: string | null;
+  sample_count: number;
+  overall_median_abs_pct_error: number | null;
+  by_comp_method: ErrorByGroup[];
+  by_release_year: ErrorByGroup[];
+}
+
 export interface StudioSlateMovie {
   tmdb_id: number;
   title: string;
