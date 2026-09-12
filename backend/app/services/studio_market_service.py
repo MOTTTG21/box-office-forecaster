@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Movie, WeeklyGrossObservation
 from app.schemas.studio import StudioMarketComparison, StudioMarketPoint
-from app.services.concurrency import run_with_isolated_sessions
+from app.services.concurrency import MAX_ITEMS_PER_REQUEST, run_with_isolated_sessions
 from app.services.stock_price_service import ingest_weekly_stock_prices
 from app.services.studio_registry import get_studio
 
@@ -56,6 +56,14 @@ def _ingest_weekly_gross_by_id(session: Session, movie_id: int) -> None:
 
 
 def _ensure_weekly_gross_ingested(db: Session, slug: str, year: int) -> None:
+    # Only movies with no scraped rows yet - ingest_weekly_gross_from_boxofficemojo already
+    # short-circuits on already-scraped movies, but that's still a wasted worker slot under the
+    # per-request cap below, on a year where most movies are already cached.
+    already_scraped_ids = (
+        db.query(WeeklyGrossObservation.movie_id)
+        .filter(WeeklyGrossObservation.source == "boxofficemojo_scrape")
+        .distinct()
+    )
     movie_ids = [
         movie_id
         for (movie_id,) in db.query(Movie.id)
@@ -64,9 +72,10 @@ def _ensure_weekly_gross_ingested(db: Session, slug: str, year: int) -> None:
         .filter(Movie.release_date >= date(year, 1, 1))
         .filter(Movie.release_date <= date(year, 12, 31))
         .filter(Movie.status == "released")
+        .filter(Movie.id.notin_(already_scraped_ids))
         .all()
     ]
-    run_with_isolated_sessions(movie_ids, _ingest_weekly_gross_by_id)
+    run_with_isolated_sessions(movie_ids, _ingest_weekly_gross_by_id, max_items=MAX_ITEMS_PER_REQUEST)
 
 
 def get_studio_market_comparison(db: Session, slug: str, year: int) -> StudioMarketComparison | None:

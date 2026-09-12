@@ -27,7 +27,7 @@ from app.etl.ingest_tmdb import upsert_movie_from_tmdb
 from app.etl.scrape_boxofficemojo import ingest_lifetime_grosses
 from app.models import Movie
 from app.schemas.studio import StudioSlateMovie, StudioSlateReport, StudioSlateSummary
-from app.services.concurrency import run_with_isolated_sessions
+from app.services.concurrency import MAX_ITEMS_PER_REQUEST, run_with_isolated_sessions
 from app.services.profitability import estimate_profit_usd
 from app.services.studio_registry import Studio, all_studios
 from app.services.theatrical_release import is_real_theatrical_release
@@ -129,7 +129,7 @@ def get_studio_slate_summary(db: Session, year: int) -> StudioSlateReport:
         if movie.status == "released" and movie.worldwide_gross_usd is None
     ]
     if needing_gross_ids:
-        run_with_isolated_sessions(needing_gross_ids, _ingest_lifetime_gross_by_id)
+        run_with_isolated_sessions(needing_gross_ids, _ingest_lifetime_gross_by_id, max_items=MAX_ITEMS_PER_REQUEST)
         movies_by_studio = {studio.slug: _query_studio_movies(db, studio.slug, year) for studio in studios}
 
     summaries = [summarize_studio_slate(studio, movies_by_studio[studio.slug]) for studio in studios]

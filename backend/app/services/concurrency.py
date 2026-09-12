@@ -9,6 +9,14 @@ threads. A worker's unexpected failure is swallowed rather than propagated - the
 item never takes down the whole batch" rule already applied to individual httpx errors
 elsewhere in this codebase, just enforced one level up for whatever a worker didn't already
 catch itself.
+
+Two real lessons learned after the first fix still let a request hit ~58s on a heavily-
+populated year (2022: 45 movies missing gross data): concurrency alone has no upper bound on
+total work, and hammering Box Office Mojo with many parallel connections from one process may
+make it throttle us, making things slower, not faster - it's also simply not polite. So:
+MAX_WORKERS is modest, and `max_items` lets a caller bound worst-case latency by deferring
+anything beyond it to a later request - the same "cache warms up over several requests" pattern
+already used elsewhere in this app, just enforced with a hard cap instead of hoping it's small.
 """
 
 from collections.abc import Callable, Iterable
@@ -21,11 +29,16 @@ from app.core.db import SessionLocal
 
 T = TypeVar("T")
 
-MAX_WORKERS = 8
+MAX_WORKERS = 4
+MAX_ITEMS_PER_REQUEST = 15
 
 
-def run_with_isolated_sessions(items: Iterable[T], work: Callable[[Session, T], None]) -> None:
+def run_with_isolated_sessions(
+    items: Iterable[T], work: Callable[[Session, T], None], max_items: int | None = None
+) -> None:
     items = list(items)
+    if max_items is not None:
+        items = items[:max_items]
     if not items:
         return
 

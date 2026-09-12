@@ -25,6 +25,7 @@ from app.schemas.movie import (
 )
 from app.services.box_office_calendar import current_box_office_week
 from app.services.comparison_service import get_franchise_comparison, get_same_year_comparison
+from app.services.concurrency import run_with_isolated_sessions
 from app.services.demographics_service import ingest_audience_demographics
 from app.services.holiday_calendar import get_holiday_highlight
 from app.services.inflation import LATEST_CPI_YEAR, adjust_for_inflation
@@ -266,6 +267,31 @@ def get_prediction_history(request: Request, tmdb_id: int, db: Session = Depends
     )
 
 
+def _enrich_movie_concurrently(db: Session, movie: Movie) -> Movie:
+    """Runs the lifetime-gross scrape and the critic-score fetch concurrently instead of one
+    after another - both are independent (each only needs movie.imdb_id) and both already
+    no-op fast when already cached, so this only matters, and only costs real latency, on a
+    movie's first-ever view (a real complaint: "load times when selecting a movie are long").
+    """
+    tmdb_id = movie.tmdb_id
+    tasks = []
+    if movie.status == "released" and movie.worldwide_gross_usd is None:
+        tasks.append(ingest_lifetime_grosses)
+    if movie.critic_scores_checked_at is None and movie.imdb_id:
+        tasks.append(ingest_critic_scores)
+    if not tasks:
+        return movie
+
+    def work(session: Session, ingester) -> None:
+        fresh = session.query(Movie).filter(Movie.tmdb_id == tmdb_id).one_or_none()
+        if fresh is not None:
+            ingester(session, fresh)
+
+    run_with_isolated_sessions(tasks, work)
+    db.refresh(movie)
+    return movie
+
+
 @router.get("/{tmdb_id}", response_model=MovieDetail)
 @limiter.limit(LOOKUP_RATE_LIMIT)
 def get_movie(request: Request, tmdb_id: int, db: Session = Depends(get_db)) -> MovieDetail:
@@ -276,9 +302,7 @@ def get_movie(request: Request, tmdb_id: int, db: Session = Depends(get_db)) -> 
         except httpx.HTTPStatusError as exc:
             raise HTTPException(status_code=404, detail="Movie not found") from exc
 
-    if movie.status == "released":
-        movie = ingest_lifetime_grosses(db, movie)
-    movie = ingest_critic_scores(db, movie)
+    movie = _enrich_movie_concurrently(db, movie)
 
     director = next((c for c in movie.credits if c.role == "director"), None)
     cast = sorted(

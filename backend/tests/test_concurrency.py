@@ -55,3 +55,25 @@ def test_empty_items_never_opens_a_session(monkeypatch):
     concurrency.run_with_isolated_sessions([], lambda session, item: None)
 
     assert opened == []
+
+
+def test_max_items_defers_the_rest_instead_of_processing_everything(monkeypatch):
+    # Real production incident: a heavily-populated year (2022, 45 movies missing gross data)
+    # took ~58s with no cap - right at the edge of a serverless timeout. max_items bounds it.
+    monkeypatch.setattr(concurrency, "SessionLocal", lambda: _FakeSession())
+    seen: list[int] = []
+
+    concurrency.run_with_isolated_sessions(
+        [1, 2, 3, 4, 5], lambda session, item: seen.append(item), max_items=2
+    )
+
+    assert len(seen) == 2
+
+
+def test_max_items_none_processes_everything(monkeypatch):
+    monkeypatch.setattr(concurrency, "SessionLocal", lambda: _FakeSession())
+    seen: list[int] = []
+
+    concurrency.run_with_isolated_sessions([1, 2, 3], lambda session, item: seen.append(item), max_items=None)
+
+    assert sorted(seen) == [1, 2, 3]
