@@ -7,6 +7,12 @@ import { StudioMarketComparison } from "@/lib/types";
 
 const YEAR_OPTIONS_BACK = 4;
 
+// A cold, never-before-cached year triggers live TMDB discovery + Box Office Mojo scraping on
+// the backend - parallelized now (see app/services/concurrency.py), but still slow enough on a
+// first hit to risk exceeding Vercel's default function timeout, which is what actually broke
+// this page in production ("Failed to load studio slate" in Vercel logs).
+export const maxDuration = 60;
+
 export default async function StudiosPage({
   searchParams,
 }: {

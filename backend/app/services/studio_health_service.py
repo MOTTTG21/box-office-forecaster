@@ -10,6 +10,11 @@ this app happened to have already ingested, this discovers each studio's real re
 year via TMDB (with_companies) and upserts them - the same "discover, then upsert on demand"
 pattern _new_release_entries already uses in app/routers/movies.py, just scoped by studio+year
 instead of by this week's release window.
+
+Discovery (across studios) and lifetime-gross scraping (across movies) both run concurrently via
+run_with_isolated_sessions, not one item at a time - sequentially, this endpoint was slow enough
+on a cold cache to exceed Vercel's serverless function timeout in production (a real incident:
+"Failed to load studio slate" errors traced to this endpoint alone taking 20+ seconds).
 """
 
 from datetime import date
@@ -21,7 +26,8 @@ from sqlalchemy.orm import Session
 from app.etl.ingest_tmdb import upsert_movie_from_tmdb
 from app.etl.scrape_boxofficemojo import ingest_lifetime_grosses
 from app.models import Movie
-from app.schemas.studio import StudioSlateReport, StudioSlateSummary
+from app.schemas.studio import StudioSlateMovie, StudioSlateReport, StudioSlateSummary
+from app.services.concurrency import run_with_isolated_sessions
 from app.services.profitability import estimate_profit_usd
 from app.services.studio_registry import Studio, all_studios
 from app.services.theatrical_release import is_real_theatrical_release
@@ -63,7 +69,9 @@ def summarize_studio_slate(studio: Studio, movies: list[Movie]) -> StudioSlateSu
     """Pure aggregation over an already-fetched movie list - kept separate from the DB/network
     orchestration above so it's unit-testable without a database (this project has no test-DB
     fixtures; see the other services' test files for the same split)."""
-    theatrical_movies = [m for m in movies if is_real_theatrical_release(m)]
+    theatrical_movies = sorted(
+        (m for m in movies if is_real_theatrical_release(m)), key=lambda m: m.release_date or date.min
+    )
 
     budgets = [m.budget_usd for m in theatrical_movies if m.budget_usd]
     grosses_with_budget = [
@@ -78,33 +86,52 @@ def summarize_studio_slate(studio: Studio, movies: list[Movie]) -> StudioSlateSu
         movies_with_data=len(grosses_with_budget),
         total_budget_usd=sum(budgets) if budgets else None,
         total_worldwide_gross_usd=(sum(g for _, g in grosses_with_budget) if grosses_with_budget else None),
+        movies=[
+            StudioSlateMovie(tmdb_id=m.tmdb_id, title=m.title, poster_path=m.poster_path)
+            for m in theatrical_movies
+        ],
         estimated_profit_usd=(
             sum(estimate_profit_usd(b, g) for b, g in grosses_with_budget) if grosses_with_budget else None
         ),
     )
 
 
+def _query_studio_movies(db: Session, studio_slug: str, year: int) -> list[Movie]:
+    return (
+        db.query(Movie)
+        .filter(Movie.studio_slug == studio_slug)
+        .filter(Movie.release_date.isnot(None))
+        .filter(Movie.release_date >= date(year, 1, 1))
+        .filter(Movie.release_date <= date(year, 12, 31))
+        .all()
+    )
+
+
+def _ingest_lifetime_gross_by_id(session: Session, movie_id: int) -> None:
+    movie = session.query(Movie).filter(Movie.id == movie_id).one_or_none()
+    if movie is not None:
+        ingest_lifetime_grosses(session, movie)
+
+
 def get_studio_slate_summary(db: Session, year: int) -> StudioSlateReport:
-    summaries: list[StudioSlateSummary] = []
+    studios = all_studios()
 
-    for studio in all_studios():
-        _discover_and_upsert_slate(db, studio.tmdb_company_ids, year)
+    run_with_isolated_sessions(
+        studios, lambda session, studio: _discover_and_upsert_slate(session, studio.tmdb_company_ids, year)
+    )
 
-        movies = (
-            db.query(Movie)
-            .filter(Movie.studio_slug == studio.slug)
-            .filter(Movie.release_date.isnot(None))
-            .filter(Movie.release_date >= date(year, 1, 1))
-            .filter(Movie.release_date <= date(year, 12, 31))
-            .all()
-        )
-        for movie in movies:
-            if movie.status == "released" and movie.worldwide_gross_usd is None:
-                try:
-                    ingest_lifetime_grosses(db, movie)
-                except httpx.HTTPStatusError:
-                    continue
+    movies_by_studio = {studio.slug: _query_studio_movies(db, studio.slug, year) for studio in studios}
 
-        summaries.append(summarize_studio_slate(studio, movies))
+    needing_gross_ids = [
+        movie.id
+        for movies in movies_by_studio.values()
+        for movie in movies
+        if movie.status == "released" and movie.worldwide_gross_usd is None
+    ]
+    if needing_gross_ids:
+        run_with_isolated_sessions(needing_gross_ids, _ingest_lifetime_gross_by_id)
+        movies_by_studio = {studio.slug: _query_studio_movies(db, studio.slug, year) for studio in studios}
+
+    summaries = [summarize_studio_slate(studio, movies_by_studio[studio.slug]) for studio in studios]
 
     return StudioSlateReport(year=year, studios=summaries)

@@ -13,12 +13,12 @@ in the app - not a validated signal.
 
 from datetime import date
 
-import httpx
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import Movie, WeeklyGrossObservation
 from app.schemas.studio import StudioMarketComparison, StudioMarketPoint
+from app.services.concurrency import run_with_isolated_sessions
 from app.services.stock_price_service import ingest_weekly_stock_prices
 from app.services.studio_registry import get_studio
 
@@ -47,23 +47,26 @@ def build_market_points(
     ]
 
 
-def _ensure_weekly_gross_ingested(db: Session, slug: str, year: int) -> None:
+def _ingest_weekly_gross_by_id(session: Session, movie_id: int) -> None:
     from app.etl.scrape_boxofficemojo import ingest_weekly_gross_from_boxofficemojo
 
-    movies = (
-        db.query(Movie)
+    movie = session.query(Movie).filter(Movie.id == movie_id).one_or_none()
+    if movie is not None:
+        ingest_weekly_gross_from_boxofficemojo(session, movie)
+
+
+def _ensure_weekly_gross_ingested(db: Session, slug: str, year: int) -> None:
+    movie_ids = [
+        movie_id
+        for (movie_id,) in db.query(Movie.id)
         .filter(Movie.studio_slug == slug)
         .filter(Movie.release_date.isnot(None))
         .filter(Movie.release_date >= date(year, 1, 1))
         .filter(Movie.release_date <= date(year, 12, 31))
         .filter(Movie.status == "released")
         .all()
-    )
-    for movie in movies:
-        try:
-            ingest_weekly_gross_from_boxofficemojo(db, movie)
-        except httpx.HTTPStatusError:
-            continue
+    ]
+    run_with_isolated_sessions(movie_ids, _ingest_weekly_gross_by_id)
 
 
 def get_studio_market_comparison(db: Session, slug: str, year: int) -> StudioMarketComparison | None:
