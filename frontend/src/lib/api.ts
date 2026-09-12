@@ -10,6 +10,7 @@ import {
   PersonDetail,
   PersonSearchResult,
   PredictionHistory,
+  ReliabilityReport,
   StudioMarketComparison,
   StudioSlateReport,
   ThisWeekMovie,
@@ -126,6 +127,14 @@ export async function getLatencyReport(): Promise<LatencyReport> {
   const res = await fetch(`${API_URL}/api/data-quality/latency`, { cache: "no-store" });
   if (!res.ok) {
     throw new Error("Failed to load latency report");
+  }
+  return res.json();
+}
+
+export async function getReliabilityReport(): Promise<ReliabilityReport> {
+  const res = await fetch(`${API_URL}/api/data-quality/reliability`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error("Failed to load reliability report");
   }
   return res.json();
 }

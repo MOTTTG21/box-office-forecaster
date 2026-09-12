@@ -47,7 +47,7 @@ def _backfill_director_history(db: Session, director: Person, exclude_tmdb_id: i
     """Make sure we have this director's recent prior films (and their opening weekends) ingested."""
     try:
         credits = tmdb_client.get_person_movie_credits(director.tmdb_id)
-    except httpx.HTTPStatusError:
+    except httpx.HTTPError:
         return
 
     prior_films = [
@@ -62,7 +62,7 @@ def _backfill_director_history(db: Session, director: Person, exclude_tmdb_id: i
         if movie is None:
             try:
                 movie = upsert_movie_from_tmdb(db, film["id"])
-            except httpx.HTTPStatusError:
+            except httpx.HTTPError:
                 continue
         if movie.status == "released":
             ingest_weekly_gross_from_boxofficemojo(db, movie)

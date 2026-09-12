@@ -6,8 +6,10 @@ from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 
 from app.models import Movie, WeeklyGrossObservation
+from app.services.circuit_breaker import get_breaker
 
 BOM_BASE_URL = "https://www.boxofficemojo.com"
+_breaker = get_breaker("box_office_mojo")
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/120.0 Safari/537.36 (personal portfolio project; non-commercial)"
@@ -176,13 +178,15 @@ def ingest_weekly_gross_from_boxofficemojo(db: Session, movie: Movie) -> list[We
     if not movie.imdb_id:
         return []
 
-    with httpx.Client(base_url=BOM_BASE_URL, headers={"User-Agent": USER_AGENT}, timeout=10.0) as client:
-        weekend_url = _find_domestic_weekend_url(client, movie.imdb_id)
-        if weekend_url is None:
-            return []
+    def _scrape() -> list[dict]:
+        with httpx.Client(base_url=BOM_BASE_URL, headers={"User-Agent": USER_AGENT}, timeout=10.0) as client:
+            weekend_url = _find_domestic_weekend_url(client, movie.imdb_id)
+            if weekend_url is None:
+                return []
+            release_year = movie.release_date.year if movie.release_date else date.today().year
+            return _fetch_weekend_rows(client, weekend_url, release_year)
 
-        release_year = movie.release_date.year if movie.release_date else date.today().year
-        rows = _fetch_weekend_rows(client, weekend_url, release_year)
+    rows = _breaker.call(_scrape)
 
     observations = [
         WeeklyGrossObservation(
@@ -205,8 +209,11 @@ def ingest_lifetime_grosses(db: Session, movie: Movie) -> Movie:
     if movie.worldwide_gross_usd is not None or not movie.imdb_id:
         return movie
 
-    with httpx.Client(base_url=BOM_BASE_URL, headers={"User-Agent": USER_AGENT}, timeout=10.0) as client:
-        domestic, worldwide = _fetch_lifetime_grosses(client, movie.imdb_id)
+    def _scrape() -> tuple[int | None, int | None]:
+        with httpx.Client(base_url=BOM_BASE_URL, headers={"User-Agent": USER_AGENT}, timeout=10.0) as client:
+            return _fetch_lifetime_grosses(client, movie.imdb_id)
+
+    domestic, worldwide = _breaker.call(_scrape)
 
     if domestic is not None:
         movie.domestic_gross_usd = domestic

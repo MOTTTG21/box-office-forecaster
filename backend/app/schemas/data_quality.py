@@ -27,3 +27,16 @@ class LatencyReport(BaseModel):
     retention_days: int
     min_samples: int
     endpoints: list[EndpointLatencyStats]
+
+
+class CircuitBreakerStatus(BaseModel):
+    name: str
+    state: str
+    consecutive_failures: int
+    failure_threshold: int
+    total_trips: int
+    last_failure_reason: str | None = None
+
+
+class ReliabilityReport(BaseModel):
+    services: list[CircuitBreakerStatus]

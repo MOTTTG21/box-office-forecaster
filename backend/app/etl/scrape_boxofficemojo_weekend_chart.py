@@ -19,8 +19,10 @@ from sqlalchemy.orm import Session
 
 from app.etl.scrape_boxofficemojo import BOM_BASE_URL, USER_AGENT, _parse_money
 from app.models import IndustryWeeklyGross
+from app.services.circuit_breaker import get_breaker
 
 SOURCE = "boxofficemojo_weekend_chart_sum"
+_breaker = get_breaker("box_office_mojo")  # shared with scrape_boxofficemojo.py - same host
 
 
 def _fetch_weekend_chart_total(client: httpx.Client, iso_year: int, iso_week: int) -> int | None:
@@ -62,8 +64,14 @@ def ingest_industry_weekly_gross(db: Session, week_start: date) -> IndustryWeekl
 
     iso_year, iso_week, _ = week_start.isocalendar()
 
-    with httpx.Client(base_url=BOM_BASE_URL, headers={"User-Agent": USER_AGENT}, timeout=10.0) as client:
-        total = _fetch_weekend_chart_total(client, iso_year, iso_week)
+    def _scrape() -> int | None:
+        with httpx.Client(base_url=BOM_BASE_URL, headers={"User-Agent": USER_AGENT}, timeout=10.0) as client:
+            return _fetch_weekend_chart_total(client, iso_year, iso_week)
+
+    try:
+        total = _breaker.call(_scrape)
+    except httpx.HTTPError:
+        return None
 
     if total is None:
         return None

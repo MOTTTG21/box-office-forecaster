@@ -1,6 +1,7 @@
 import httpx
 
 from app.core.config import settings
+from app.services.circuit_breaker import get_breaker
 
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
 
@@ -12,44 +13,39 @@ class TMDBClient:
             params={"api_key": settings.tmdb_api_key},
             timeout=10.0,
         )
+        self._breaker = get_breaker("tmdb")
+
+    def _get(self, path: str, params: dict | None = None) -> dict:
+        def _request() -> dict:
+            response = self._client.get(path, params=params)
+            response.raise_for_status()
+            return response.json()
+
+        return self._breaker.call(_request)
 
     def search_movies(self, query: str) -> list[dict]:
-        response = self._client.get("/search/movie", params={"query": query})
-        response.raise_for_status()
-        return response.json()["results"]
+        return self._get("/search/movie", params={"query": query})["results"]
 
     def get_movie_list(self, path: str) -> list[dict]:
-        response = self._client.get(path)
-        response.raise_for_status()
-        return response.json()["results"]
+        return self._get(path)["results"]
 
     def get_movie_with_credits(self, tmdb_id: int) -> dict:
-        response = self._client.get(f"/movie/{tmdb_id}", params={"append_to_response": "credits"})
-        response.raise_for_status()
-        return response.json()
+        return self._get(f"/movie/{tmdb_id}", params={"append_to_response": "credits"})
 
     def get_person_movie_credits(self, person_tmdb_id: int) -> dict:
-        response = self._client.get(f"/person/{person_tmdb_id}/movie_credits")
-        response.raise_for_status()
-        return response.json()
+        return self._get(f"/person/{person_tmdb_id}/movie_credits")
 
     def get_person(self, person_tmdb_id: int) -> dict:
-        response = self._client.get(f"/person/{person_tmdb_id}")
-        response.raise_for_status()
-        return response.json()
+        return self._get(f"/person/{person_tmdb_id}")
 
     def search_people(self, query: str) -> list[dict]:
-        response = self._client.get("/search/person", params={"query": query})
-        response.raise_for_status()
-        return response.json()["results"]
+        return self._get("/search/person", params={"query": query})["results"]
 
     def get_collection(self, collection_id: int) -> dict:
-        response = self._client.get(f"/collection/{collection_id}")
-        response.raise_for_status()
-        return response.json()
+        return self._get(f"/collection/{collection_id}")
 
     def discover_movies_by_date_range(self, start_date: str, end_date: str) -> list[dict]:
-        response = self._client.get(
+        return self._get(
             "/discover/movie",
             params={
                 "region": "US",
@@ -58,12 +54,10 @@ class TMDBClient:
                 "primary_release_date.gte": start_date,
                 "primary_release_date.lte": end_date,
             },
-        )
-        response.raise_for_status()
-        return response.json()["results"]
+        )["results"]
 
     def discover_movies_by_company_and_year(self, company_id: int, start_date: str, end_date: str) -> list[dict]:
-        response = self._client.get(
+        return self._get(
             "/discover/movie",
             params={
                 "region": "US",
@@ -73,9 +67,7 @@ class TMDBClient:
                 "primary_release_date.gte": start_date,
                 "primary_release_date.lte": end_date,
             },
-        )
-        response.raise_for_status()
-        return response.json()["results"]
+        )["results"]
 
 
 tmdb_client = TMDBClient()

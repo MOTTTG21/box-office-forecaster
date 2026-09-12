@@ -173,6 +173,19 @@ export interface LatencyReport {
   endpoints: EndpointLatencyStats[];
 }
 
+export interface CircuitBreakerStatus {
+  name: string;
+  state: "open" | "closed";
+  consecutive_failures: number;
+  failure_threshold: number;
+  total_trips: number;
+  last_failure_reason: string | null;
+}
+
+export interface ReliabilityReport {
+  services: CircuitBreakerStatus[];
+}
+
 export interface StudioSlateMovie {
   tmdb_id: number;
   title: string;

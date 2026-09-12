@@ -20,11 +20,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import StudioStockPrice
+from app.services.circuit_breaker import get_breaker
 
 YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
 USER_AGENT = "Mozilla/5.0 (compatible; box-office-forecaster/1.0)"
 SOURCE = "yahoo_finance"
 DEFAULT_RANGE = "2y"
+_breaker = get_breaker("yahoo_finance")
 
 
 def _fetch_weekly_closes(client: httpx.Client, ticker: str) -> list[tuple[date, float]]:
@@ -56,11 +58,11 @@ def _fetch_weekly_closes(client: httpx.Client, ticker: str) -> list[tuple[date, 
 def ingest_weekly_stock_prices(db: Session, ticker: str) -> list[StudioStockPrice]:
     """Fetches and caches weekly closes for `ticker`, then returns everything cached for it
     (not just what was fetched this call) so callers always see the full history."""
-    with httpx.Client(timeout=10.0) as client:
-        try:
-            points = _fetch_weekly_closes(client, ticker)
-        except httpx.HTTPError:
-            points = []
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            points = _breaker.call(lambda: _fetch_weekly_closes(client, ticker))
+    except httpx.HTTPError:
+        points = []
 
     existing_weeks = {
         row.week_start_date for row in db.query(StudioStockPrice).filter(StudioStockPrice.ticker == ticker).all()

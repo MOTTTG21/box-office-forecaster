@@ -69,7 +69,7 @@ def get_person(request: Request, tmdb_id: int) -> PersonDetail:
     try:
         details = tmdb_client.get_person(tmdb_id)
         credits = tmdb_client.get_person_movie_credits(tmdb_id)
-    except httpx.HTTPStatusError as exc:
+    except httpx.HTTPError as exc:
         raise HTTPException(status_code=404, detail="Person not found") from exc
 
     return PersonDetail(

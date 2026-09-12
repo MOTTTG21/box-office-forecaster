@@ -96,7 +96,7 @@ def _new_release_entries(db: Session, today: date, window_start: date, window_en
         if movie is None:
             try:
                 movie = upsert_movie_from_tmdb(db, result["id"])
-            except httpx.HTTPStatusError:
+            except httpx.HTTPError:
                 continue
 
         if not is_real_theatrical_release(movie):
@@ -152,7 +152,7 @@ def _holdover_entries(db: Session, exclude_tmdb_ids: set[int]) -> list[ThisWeekM
         if movie is None:
             try:
                 movie = upsert_movie_from_tmdb(db, result["id"])
-            except httpx.HTTPStatusError:
+            except httpx.HTTPError:
                 continue
 
         if movie.status != "released" or not is_real_theatrical_release(movie):
@@ -299,7 +299,7 @@ def get_movie(request: Request, tmdb_id: int, db: Session = Depends(get_db)) -> 
     if movie is None:
         try:
             movie = upsert_movie_from_tmdb(db, tmdb_id)
-        except httpx.HTTPStatusError as exc:
+        except httpx.HTTPError as exc:
             raise HTTPException(status_code=404, detail="Movie not found") from exc
 
     movie = _enrich_movie_concurrently(db, movie)
@@ -371,7 +371,7 @@ def get_weekly_gross(request: Request, tmdb_id: int, db: Session = Depends(get_d
     if movie is None:
         try:
             movie = upsert_movie_from_tmdb(db, tmdb_id)
-        except httpx.HTTPStatusError as exc:
+        except httpx.HTTPError as exc:
             raise HTTPException(status_code=404, detail="Movie not found") from exc
 
     observations = ingest_weekly_gross_from_boxofficemojo(db, movie)
@@ -385,7 +385,7 @@ def compare_franchise(request: Request, tmdb_id: int, db: Session = Depends(get_
     if movie is None:
         try:
             movie = upsert_movie_from_tmdb(db, tmdb_id)
-        except httpx.HTTPStatusError as exc:
+        except httpx.HTTPError as exc:
             raise HTTPException(status_code=404, detail="Movie not found") from exc
 
     return get_franchise_comparison(db, movie)
@@ -398,7 +398,7 @@ def compare_year(request: Request, tmdb_id: int, db: Session = Depends(get_db)) 
     if movie is None:
         try:
             movie = upsert_movie_from_tmdb(db, tmdb_id)
-        except httpx.HTTPStatusError as exc:
+        except httpx.HTTPError as exc:
             raise HTTPException(status_code=404, detail="Movie not found") from exc
 
     return get_same_year_comparison(db, movie)

@@ -12,7 +12,9 @@ TOP_CAST_LIMIT = 10
 def upsert_movie_from_tmdb(db: Session, tmdb_id: int) -> Movie:
     """Fetch a movie + credits from TMDB and upsert it into the local DB.
 
-    Raises httpx.HTTPStatusError if TMDB has no such movie.
+    Raises httpx.HTTPError - a 404 (no such movie), a raw network failure, or the TMDB circuit
+    breaker being open (app/services/circuit_breaker.py) all surface the same way, since callers
+    already treat "TMDB didn't answer" as one case, not three.
     """
     data = tmdb_client.get_movie_with_credits(tmdb_id)
 

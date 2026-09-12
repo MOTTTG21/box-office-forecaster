@@ -42,7 +42,7 @@ def _discover_and_upsert_slate(db: Session, tmdb_company_ids: tuple[int, ...], y
     for company_id in tmdb_company_ids:
         try:
             candidates = tmdb_client.discover_movies_by_company_and_year(company_id, start, end)
-        except httpx.HTTPStatusError:
+        except httpx.HTTPError:
             continue
         for result in candidates:
             tmdb_id = result["id"]
@@ -54,7 +54,7 @@ def _discover_and_upsert_slate(db: Session, tmdb_company_ids: tuple[int, ...], y
                 continue  # already ingested; re-fetching every request would be wasteful
             try:
                 upsert_movie_from_tmdb(db, tmdb_id)
-            except httpx.HTTPStatusError:
+            except httpx.HTTPError:
                 continue
             except IntegrityError:
                 # a concurrent request (a real one found live in Railway logs: 3 real 500s on

@@ -31,7 +31,7 @@ def get_franchise_comparison(db: Session, movie: Movie) -> list[ComparisonSeries
 
     try:
         collection = tmdb_client.get_collection(movie.belongs_to_collection_tmdb_id)
-    except httpx.HTTPStatusError:
+    except httpx.HTTPError:
         return []
 
     parts = [p for p in collection.get("parts", []) if p.get("release_date")]
@@ -44,7 +44,7 @@ def get_franchise_comparison(db: Session, movie: Movie) -> list[ComparisonSeries
         if part_movie is None:
             try:
                 part_movie = upsert_movie_from_tmdb(db, part["id"])
-            except httpx.HTTPStatusError:
+            except httpx.HTTPError:
                 continue
         if part_movie.status != "released":
             continue

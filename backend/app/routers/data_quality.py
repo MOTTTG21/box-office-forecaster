@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.limiter import DATA_QUALITY_RATE_LIMIT, limiter
-from app.schemas.data_quality import DataAnomalyOut, LatencyReport
+from app.schemas.data_quality import CircuitBreakerStatus, DataAnomalyOut, LatencyReport, ReliabilityReport
+from app.services.circuit_breaker import all_breaker_snapshots
 from app.services.data_quality import refresh_data_anomalies
 from app.services.latency_service import get_latency_report
 
@@ -16,6 +17,14 @@ SEVERITY_RANK = {"high": 0, "medium": 1, "low": 2}
 @limiter.limit(DATA_QUALITY_RATE_LIMIT)
 def get_latency(request: Request, db: Session = Depends(get_db)) -> LatencyReport:
     return get_latency_report(db)
+
+
+@router.get("/reliability", response_model=ReliabilityReport)
+@limiter.limit(DATA_QUALITY_RATE_LIMIT)
+def get_reliability(request: Request) -> ReliabilityReport:
+    return ReliabilityReport(
+        services=[CircuitBreakerStatus(**snapshot) for snapshot in all_breaker_snapshots()]
+    )
 
 
 @router.get("", response_model=list[DataAnomalyOut])
