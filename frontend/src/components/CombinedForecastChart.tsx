@@ -60,22 +60,36 @@ interface TooltipPayloadItem {
   value?: number;
 }
 
+function sentimentBadge(pct: number | undefined) {
+  if (pct == null || pct === 0) return null;
+  const isUp = pct > 0;
+  return (
+    <span className={isUp ? "text-[#0ca30c]" : "text-[#d03b3b]"} title={`${isUp ? "+" : ""}${pct}% buzz adjustment`}>
+      {isUp ? "▲" : "▼"}
+    </span>
+  );
+}
+
 function ChartTooltip({
   active,
   label,
   payload,
   entries,
+  sentimentByDate,
 }: {
   active?: boolean;
   label?: string | number;
   payload?: unknown;
   entries: Entry[];
+  sentimentByDate: Record<string, Record<string, number>>;
 }) {
   const items = payload as TooltipPayloadItem[] | undefined;
   if (!active || !items?.length) return null;
 
   const sorted = items.filter((p) => p.value != null).sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
   if (sorted.length === 0) return null;
+
+  const sentimentForRow = typeof label === "string" ? sentimentByDate[label] : undefined;
 
   return (
     <div className="max-h-64 max-w-[240px] overflow-y-auto rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
@@ -86,7 +100,10 @@ function ChartTooltip({
         return (
           <div key={item.dataKey} className="flex justify-between gap-3 text-zinc-700 dark:text-zinc-300">
             <span className="line-clamp-1">{entry.movie.title}</span>
-            <span className="font-medium tabular-nums">{formatUsd(item.value ?? null)}</span>
+            <span className="flex items-center gap-1 font-medium tabular-nums">
+              {sentimentBadge(item.dataKey ? sentimentForRow?.[item.dataKey] : undefined)}
+              {formatUsd(item.value ?? null)}
+            </span>
           </div>
         );
       })}
@@ -117,6 +134,21 @@ export default function CombinedForecastChart({ entries }: { entries: Entry[] })
     }
     return row;
   });
+
+  // Keyed by the same day label used on the x-axis, so the tooltip can look up "was there a
+  // buzz adjustment for this movie on this day" without re-scanning every snapshot on hover.
+  const sentimentByDate: Record<string, Record<string, number>> = {};
+  for (const date of allDates) {
+    const label = dayLabel(date);
+    const forDate: Record<string, number> = {};
+    for (const { movie, history } of entries) {
+      const snapshot = history?.snapshots.find((s) => s.snapshot_date === date);
+      if (snapshot?.sentiment_pct != null) {
+        forDate[movieKey(movie.tmdb_id)] = snapshot.sentiment_pct;
+      }
+    }
+    sentimentByDate[label] = forDate;
+  }
 
   function lastValueIndex(key: string): number {
     for (let i = rows.length - 1; i >= 0; i--) {
@@ -156,7 +188,13 @@ export default function CombinedForecastChart({ entries }: { entries: Entry[] })
           />
           <Tooltip
             content={({ active, label, payload }) => (
-              <ChartTooltip active={active} label={label} payload={payload} entries={entries} />
+              <ChartTooltip
+                active={active}
+                label={label}
+                payload={payload}
+                entries={entries}
+                sentimentByDate={sentimentByDate}
+              />
             )}
             cursor={{ stroke: "var(--grid)" }}
           />

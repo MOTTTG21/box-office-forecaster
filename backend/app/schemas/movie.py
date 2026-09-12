@@ -101,6 +101,7 @@ class PredictionSnapshotPoint(BaseModel):
     snapshot_date: date
     predicted_weekend_gross_usd: float | None = None
     news_reason: str | None = None
+    sentiment_pct: float | None = None
 
 
 class PredictionHistory(BaseModel):

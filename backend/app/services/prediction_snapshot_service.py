@@ -32,13 +32,14 @@ def get_or_record_snapshot(
     movie_id: int,
     week_number: int,
     is_new_release: bool,
-    compute_prediction: Callable[[], tuple[float | None, str | None]],
+    compute_prediction: Callable[[], tuple[float | None, str | None, float | None]],
 ) -> float | None:
     """Returns today's snapshot for (movie_id, week_number) if one already exists; otherwise
     computes it via `compute_prediction` (only called when needed - it's the expensive path,
     which may include a live news-research call), records it, and returns the predicted value.
-    `compute_prediction` returns (predicted_value, news_reason) - the reason is stored but not
-    returned here; read it back via get_snapshot_history for the chart.
+    `compute_prediction` returns (predicted_value, news_reason, sentiment_pct) - the reason and
+    sentiment are stored but not returned here; read them back via get_snapshot_history for the
+    chart.
 
     Two concurrent requests can both see "no snapshot yet" and both compute + try to insert -
     the second one to commit hits the unique constraint on (movie_id, week_number,
@@ -50,7 +51,7 @@ def get_or_record_snapshot(
     if existing is not None:
         return existing.predicted_weekend_gross_usd
 
-    predicted, reason = compute_prediction()
+    predicted, reason, sentiment_pct = compute_prediction()
     db.add(
         PredictionSnapshot(
             movie_id=movie_id,
@@ -59,6 +60,7 @@ def get_or_record_snapshot(
             is_new_release=is_new_release,
             predicted_weekend_gross_usd=predicted,
             news_reason=reason,
+            sentiment_pct=sentiment_pct,
         )
     )
     try:

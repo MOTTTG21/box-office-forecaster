@@ -60,7 +60,7 @@ def test_returns_the_winning_concurrent_requests_value_instead_of_crashing():
         movie_id=1,
         week_number=1,
         is_new_release=True,
-        compute_prediction=lambda: (99_000_000.0, "this request's own computed value, should be discarded"),
+        compute_prediction=lambda: (99_000_000.0, "this request's own computed value, should be discarded", 5.0),
     )
 
     assert result == 42_000_000.0
@@ -79,7 +79,7 @@ def test_falls_back_to_own_computed_value_if_the_winner_cannot_be_found_either()
         movie_id=1,
         week_number=1,
         is_new_release=True,
-        compute_prediction=lambda: (99_000_000.0, "reason"),
+        compute_prediction=lambda: (99_000_000.0, "reason", 5.0),
     )
 
     assert result == 99_000_000.0

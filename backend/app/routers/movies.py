@@ -260,6 +260,7 @@ def get_prediction_history(request: Request, tmdb_id: int, db: Session = Depends
                 snapshot_date=s.snapshot_date,
                 predicted_weekend_gross_usd=s.predicted_weekend_gross_usd,
                 news_reason=s.news_reason,
+                sentiment_pct=s.sentiment_pct,
             )
             for s in snapshots
         ],

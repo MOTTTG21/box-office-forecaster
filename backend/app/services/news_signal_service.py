@@ -11,7 +11,9 @@ Claude researches via its web_search tool and reports a percentage nudge + one-s
 through a forced tool call (see anthropic_client.research_news_adjustment) - never free text, so
 the result is always parseable. The percentage is clamped to MAX_ADJUSTMENT_PCT regardless of
 what Claude proposes, as a hard safety rail against one research pass swinging the number to
-somewhere absurd.
+somewhere absurd. That clamped percentage is returned as its own value (not just folded into the
+dollar prediction) so it can be stored and plotted as a real sentiment time-series - see
+PredictionSnapshot.sentiment_pct - rather than only readable as prose in the reason sentence.
 
 If the call fails for any reason (no API key configured, rate limited, web search disabled for
 the org), the snapshot just uses the unadjusted baseline - this signal is additive, never
@@ -25,9 +27,12 @@ from app.services.anthropic_client import anthropic_client
 MAX_ADJUSTMENT_PCT = 25.0
 
 
-def apply_news_adjustment(base_prediction: float | None, movie_title: str) -> tuple[float | None, str | None]:
-    """Returns (adjusted_prediction, reason). Falls back to (base_prediction, None) unchanged
-    if the base prediction is unknown or the research call doesn't produce a usable result.
+def apply_news_adjustment(
+    base_prediction: float | None, movie_title: str
+) -> tuple[float | None, str | None, float | None]:
+    """Returns (adjusted_prediction, reason, sentiment_pct). Falls back to (base_prediction,
+    None, None) unchanged if the base prediction is unknown or the research call doesn't
+    produce a usable result.
 
     base_prediction can arrive as a decimal.Decimal (new-release predictions come straight from
     a SQLAlchemy Numeric column) or a plain float (holdover predictions, computed in Python) -
@@ -35,18 +40,18 @@ def apply_news_adjustment(base_prediction: float | None, movie_title: str) -> tu
     against: Decimal * float raises TypeError, which took the whole /this-week endpoint down in
     production the first time a new release needed a fresh (uncached) snapshot computed."""
     if base_prediction is None:
-        return None, None
+        return None, None, None
     base_prediction = float(base_prediction)
 
     try:
         result = anthropic_client.research_news_adjustment(movie_title)
     except httpx.HTTPError:
-        return base_prediction, None
+        return base_prediction, None, None
 
     if result is None:
-        return base_prediction, None
+        return base_prediction, None, None
 
     percent, reason = result
     clamped_pct = max(-MAX_ADJUSTMENT_PCT, min(MAX_ADJUSTMENT_PCT, percent))
     adjusted = base_prediction * (1 + clamped_pct / 100)
-    return adjusted, reason
+    return adjusted, reason, clamped_pct

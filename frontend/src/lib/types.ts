@@ -114,6 +114,7 @@ export interface PredictionSnapshotPoint {
   snapshot_date: string;
   predicted_weekend_gross_usd: number | null;
   news_reason: string | null;
+  sentiment_pct: number | null;
 }
 
 export interface PredictionHistory {

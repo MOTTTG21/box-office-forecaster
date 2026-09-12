@@ -11,9 +11,10 @@ def test_returns_none_when_base_prediction_is_none(monkeypatch):
     monkeypatch.setattr(
         anthropic_client_module.anthropic_client, "research_news_adjustment", lambda title: (10.0, "buzz")
     )
-    adjusted, reason = apply_news_adjustment(None, "Some Movie")
+    adjusted, reason, sentiment_pct = apply_news_adjustment(None, "Some Movie")
     assert adjusted is None
     assert reason is None
+    assert sentiment_pct is None
 
 
 def test_applies_a_positive_adjustment(monkeypatch):
@@ -22,9 +23,10 @@ def test_applies_a_positive_adjustment(monkeypatch):
         "research_news_adjustment",
         lambda title: (10.0, "Trailer went viral this week."),
     )
-    adjusted, reason = apply_news_adjustment(100.0, "Some Movie")
+    adjusted, reason, sentiment_pct = apply_news_adjustment(100.0, "Some Movie")
     assert adjusted == pytest.approx(110.0)
     assert reason == "Trailer went viral this week."
+    assert sentiment_pct == 10.0
 
 
 def test_clamps_an_extreme_adjustment_to_the_safety_rail(monkeypatch):
@@ -33,23 +35,26 @@ def test_clamps_an_extreme_adjustment_to_the_safety_rail(monkeypatch):
         "research_news_adjustment",
         lambda title: (999.0, "wildly overconfident claim"),
     )
-    adjusted, _ = apply_news_adjustment(100.0, "Some Movie")
+    adjusted, _, sentiment_pct = apply_news_adjustment(100.0, "Some Movie")
     assert adjusted == pytest.approx(100.0 * (1 + MAX_ADJUSTMENT_PCT / 100))
+    assert sentiment_pct == MAX_ADJUSTMENT_PCT  # the reported sentiment is clamped too, not just the dollar amount
 
 
 def test_clamps_a_negative_extreme_too(monkeypatch):
     monkeypatch.setattr(
         anthropic_client_module.anthropic_client, "research_news_adjustment", lambda title: (-999.0, "disaster")
     )
-    adjusted, _ = apply_news_adjustment(100.0, "Some Movie")
+    adjusted, _, sentiment_pct = apply_news_adjustment(100.0, "Some Movie")
     assert adjusted == pytest.approx(100.0 * (1 - MAX_ADJUSTMENT_PCT / 100))
+    assert sentiment_pct == -MAX_ADJUSTMENT_PCT
 
 
 def test_falls_back_to_base_prediction_when_claude_never_calls_the_tool(monkeypatch):
     monkeypatch.setattr(anthropic_client_module.anthropic_client, "research_news_adjustment", lambda title: None)
-    adjusted, reason = apply_news_adjustment(100.0, "Some Movie")
+    adjusted, reason, sentiment_pct = apply_news_adjustment(100.0, "Some Movie")
     assert adjusted == 100.0
     assert reason is None
+    assert sentiment_pct is None
 
 
 def test_accepts_a_decimal_base_prediction_without_crashing(monkeypatch):
@@ -61,10 +66,11 @@ def test_accepts_a_decimal_base_prediction_without_crashing(monkeypatch):
         "research_news_adjustment",
         lambda title: (10.0, "Trailer went viral this week."),
     )
-    adjusted, reason = apply_news_adjustment(Decimal("100.0"), "Some Movie")
+    adjusted, reason, sentiment_pct = apply_news_adjustment(Decimal("100.0"), "Some Movie")
     assert adjusted == pytest.approx(110.0)
     assert isinstance(adjusted, float)
     assert reason == "Trailer went viral this week."
+    assert sentiment_pct == 10.0
 
 
 def test_falls_back_to_base_prediction_when_the_api_call_fails(monkeypatch):
@@ -72,6 +78,7 @@ def test_falls_back_to_base_prediction_when_the_api_call_fails(monkeypatch):
         raise httpx.HTTPStatusError("boom", request=httpx.Request("POST", "https://x"), response=httpx.Response(500))
 
     monkeypatch.setattr(anthropic_client_module.anthropic_client, "research_news_adjustment", _raise)
-    adjusted, reason = apply_news_adjustment(100.0, "Some Movie")
+    adjusted, reason, sentiment_pct = apply_news_adjustment(100.0, "Some Movie")
     assert adjusted == 100.0
     assert reason is None
+    assert sentiment_pct is None
