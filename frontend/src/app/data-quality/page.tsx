@@ -92,6 +92,20 @@ export default async function DataQualityPage() {
                       <span className="font-medium not-italic">Claude:</span> {anomaly.ai_explanation}
                     </p>
                   )}
+                  {anomaly.likely_data_error === true && (
+                    <div className="mt-1 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                      <p className="font-medium">Suggested correction (needs human review, not applied)</p>
+                      {anomaly.suggested_correction && <p className="mt-0.5">{anomaly.suggested_correction}</p>}
+                      {anomaly.investigation_source_note && (
+                        <p className="mt-0.5 text-amber-700 dark:text-amber-400">Source: {anomaly.investigation_source_note}</p>
+                      )}
+                    </div>
+                  )}
+                  {anomaly.likely_data_error === false && anomaly.investigation_source_note && (
+                    <p className="text-xs text-zinc-400 dark:text-zinc-600">
+                      Checked against real sources, figures hold up: {anomaly.investigation_source_note}
+                    </p>
+                  )}
                 </div>
               </div>
             );

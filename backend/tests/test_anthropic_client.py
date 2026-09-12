@@ -69,3 +69,61 @@ def test_research_audience_demographics_returns_none_on_malformed_input():
         {"content": [{"type": "tool_use", "name": "report_demographics", "input": {"source_note": "oops"}}]}
     )
     assert client.research_audience_demographics("Some Movie") is None
+
+
+def test_investigate_anomaly_parses_likely_error():
+    client = _client_returning(
+        {
+            "content": [
+                {
+                    "type": "tool_use",
+                    "name": "report_investigation",
+                    "input": {
+                        "likely_data_error": True,
+                        "suggested_correction": "Worldwide gross should be $120M per Box Office Mojo.",
+                        "source_note": "Box Office Mojo lifetime page",
+                    },
+                }
+            ]
+        }
+    )
+    result = client.investigate_anomaly("Some Movie", "domestic_exceeds_worldwide", "domestic $130M > worldwide $100M")
+    assert result is not None
+    assert result.likely_data_error is True
+    assert result.suggested_correction == "Worldwide gross should be $120M per Box Office Mojo."
+    assert result.source_note == "Box Office Mojo lifetime page"
+
+
+def test_investigate_anomaly_parses_figures_check_out():
+    client = _client_returning(
+        {
+            "content": [
+                {
+                    "type": "tool_use",
+                    "name": "report_investigation",
+                    "input": {
+                        "likely_data_error": False,
+                        "suggested_correction": "",
+                        "source_note": "Wikipedia infobox confirms the flagged figures",
+                    },
+                }
+            ]
+        }
+    )
+    result = client.investigate_anomaly("Some Movie", "some_rule", "some detail")
+    assert result is not None
+    assert result.likely_data_error is False
+    assert result.suggested_correction is None
+
+
+def test_investigate_anomaly_returns_none_when_tool_never_called():
+    client = _client_returning({"content": [{"type": "text", "text": "I couldn't find anything."}]})
+    assert client.investigate_anomaly("Some Movie", "some_rule", "some detail") is None
+
+
+def test_investigate_anomaly_returns_none_on_malformed_input():
+    # missing the required likely_data_error field entirely - must not crash
+    client = _client_returning(
+        {"content": [{"type": "tool_use", "name": "report_investigation", "input": {"source_note": "oops"}}]}
+    )
+    assert client.investigate_anomaly("Some Movie", "some_rule", "some detail") is None

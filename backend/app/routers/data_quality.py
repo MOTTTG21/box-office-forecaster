@@ -55,6 +55,9 @@ def get_data_anomalies(request: Request, db: Session = Depends(get_db)) -> list[
             detail=row.detail,
             ai_explanation=row.ai_explanation,
             detected_at=row.detected_at,
+            likely_data_error=row.likely_data_error,
+            suggested_correction=row.suggested_correction,
+            investigation_source_note=row.investigation_source_note,
         )
         for row in rows
     ]

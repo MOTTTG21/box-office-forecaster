@@ -157,6 +157,9 @@ export interface DataAnomaly {
   detail: string;
   ai_explanation: string | null;
   detected_at: string;
+  likely_data_error: boolean | null;
+  suggested_correction: string | null;
+  investigation_source_note: string | null;
 }
 
 export interface EndpointLatencyStats {

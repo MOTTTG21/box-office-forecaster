@@ -12,6 +12,9 @@ class DataAnomalyOut(BaseModel):
     detail: str
     ai_explanation: str | None = None
     detected_at: datetime
+    likely_data_error: bool | None = None
+    suggested_correction: str | None = None
+    investigation_source_note: str | None = None
 
 
 class EndpointLatencyStats(BaseModel):
