@@ -35,6 +35,13 @@ function dayLabel(dateStr: string): string {
   return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
+function formatUpdatedAt(iso: string): string {
+  const d = new Date(iso);
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  if (d.toDateString() === new Date().toDateString()) return `Updated today at ${time}`;
+  return `Updated ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} at ${time}`;
+}
+
 function movieKey(tmdbId: number): string {
   return `m${tmdbId}`;
 }
@@ -150,6 +157,12 @@ export default function CombinedForecastChart({ entries }: { entries: Entry[] })
     sentimentByDate[label] = forDate;
   }
 
+  const lastUpdatedIso = entries.reduce<string | null>((latest, { history }) => {
+    const mostRecent = history?.snapshots[history.snapshots.length - 1]?.recorded_at;
+    if (!mostRecent) return latest;
+    return !latest || mostRecent > latest ? mostRecent : latest;
+  }, null);
+
   function lastValueIndex(key: string): number {
     for (let i = rows.length - 1; i >= 0; i--) {
       if (rows[i][key] != null) return i;
@@ -160,10 +173,15 @@ export default function CombinedForecastChart({ entries }: { entries: Entry[] })
   return (
     <div className={`flex flex-col gap-4 ${CHART_VARS}`}>
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Forecast Trend</h2>
-        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-          Experimental
-        </span>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Forecast Trend</h2>
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+            Experimental
+          </span>
+        </div>
+        {lastUpdatedIso && (
+          <span className="text-xs text-zinc-500 dark:text-zinc-400">{formatUpdatedAt(lastUpdatedIso)}</span>
+        )}
       </div>
       <p className="max-w-2xl text-xs text-zinc-500 dark:text-zinc-400">
         The chart above tracks each film&apos;s <strong>projected amount made during the weekend</strong>, day by

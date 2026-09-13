@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict
 
@@ -102,6 +102,7 @@ class PredictionSnapshotPoint(BaseModel):
     predicted_weekend_gross_usd: float | None = None
     news_reason: str | None = None
     sentiment_pct: float | None = None
+    recorded_at: datetime
 
 
 class PredictionHistory(BaseModel):
