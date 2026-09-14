@@ -1,8 +1,9 @@
 import re
-from datetime import date
+from datetime import date, timedelta
 
 import httpx
 from bs4 import BeautifulSoup
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import Movie, WeeklyGrossObservation
@@ -156,12 +157,22 @@ def _fetch_weekend_rows(client: httpx.Client, weekend_url: str, release_year: in
     return observations
 
 
+STALE_AFTER_DAYS = 6
+
+
 def ingest_weekly_gross_from_boxofficemojo(db: Session, movie: Movie) -> list[WeeklyGrossObservation]:
     """Scrape and store domestic weekend-by-weekend gross for a movie from Box Office Mojo.
 
-    Only scrapes once per movie (checks for existing rows first) - fine for
-    completed theatrical runs, which is what this covers for now. Returns
-    the stored observations, ordered by week number.
+    Skips re-scraping while our latest stored week is still recent (within STALE_AFTER_DAYS of
+    today), so a movie whose run finished long ago never gets re-hit. But a movie still playing
+    keeps getting new weekends published on BOM roughly every 7 days, so a cache that never
+    expired meant a holdover's weekly gross - and the "beat the forecast" resolution on the
+    forecast chart - froze at whatever week it was first looked up, even while the movie kept
+    playing and new numbers kept posting. Re-checking about once a week picks those up.
+
+    Never raises on a scrape failure - falls back to whatever's already stored, since several
+    callers don't (and shouldn't have to) guard every call with their own try/except.
+    Returns the stored observations, ordered by week number.
     """
     existing = (
         db.query(WeeklyGrossObservation)
@@ -173,10 +184,16 @@ def ingest_weekly_gross_from_boxofficemojo(db: Session, movie: Movie) -> list[We
         .all()
     )
     if existing:
-        return existing
+        latest = existing[-1]
+        is_fresh = (
+            latest.week_start_date is not None
+            and latest.week_start_date > date.today() - timedelta(days=STALE_AFTER_DAYS)
+        )
+        if is_fresh:
+            return existing
 
     if not movie.imdb_id:
-        return []
+        return existing
 
     def _scrape() -> list[dict]:
         with httpx.Client(base_url=BOM_BASE_URL, headers={"User-Agent": USER_AGENT}, timeout=10.0) as client:
@@ -186,7 +203,15 @@ def ingest_weekly_gross_from_boxofficemojo(db: Session, movie: Movie) -> list[We
             release_year = movie.release_date.year if movie.release_date else date.today().year
             return _fetch_weekend_rows(client, weekend_url, release_year)
 
-    rows = _breaker.call(_scrape)
+    try:
+        rows = _breaker.call(_scrape)
+    except httpx.HTTPError:
+        return existing
+
+    known_week_numbers = {o.week_number for o in existing}
+    new_rows = [row for row in rows if row["week_number"] not in known_week_numbers]
+    if not new_rows:
+        return existing
 
     observations = [
         WeeklyGrossObservation(
@@ -195,13 +220,26 @@ def ingest_weekly_gross_from_boxofficemojo(db: Session, movie: Movie) -> list[We
             source="boxofficemojo_scrape",
             **row,
         )
-        for row in rows
+        for row in new_rows
     ]
     db.add_all(observations)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # A concurrent request already inserted these same new weeks - reload rather than error.
+        db.rollback()
+        return (
+            db.query(WeeklyGrossObservation)
+            .filter(
+                WeeklyGrossObservation.movie_id == movie.id,
+                WeeklyGrossObservation.source == "boxofficemojo_scrape",
+            )
+            .order_by(WeeklyGrossObservation.week_number)
+            .all()
+        )
     for obs in observations:
         db.refresh(obs)
-    return observations
+    return sorted(existing + observations, key=lambda o: o.week_number)
 
 
 def ingest_lifetime_grosses(db: Session, movie: Movie) -> Movie:

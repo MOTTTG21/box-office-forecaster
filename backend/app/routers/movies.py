@@ -25,7 +25,7 @@ from app.schemas.movie import (
 )
 from app.services.box_office_calendar import current_box_office_week
 from app.services.comparison_service import get_franchise_comparison, get_same_year_comparison
-from app.services.concurrency import run_with_isolated_sessions
+from app.services.concurrency import MAX_ITEMS_PER_REQUEST, run_with_isolated_sessions
 from app.services.demographics_service import ingest_audience_demographics
 from app.services.holiday_calendar import get_holiday_highlight
 from app.services.inflation import LATEST_CPI_YEAR, adjust_for_inflation
@@ -143,7 +143,7 @@ def _holdover_entries(db: Session, exclude_tmdb_ids: set[int]) -> list[ThisWeekM
     now_playing = tmdb_client.get_movie_list("/movie/now_playing")
     transitions = load_transitions_from_db(db)
 
-    entries: list[ThisWeekMovie] = []
+    candidates: list[Movie] = []
     for result in now_playing:
         if result["id"] in exclude_tmdb_ids:
             continue
@@ -157,7 +157,22 @@ def _holdover_entries(db: Session, exclude_tmdb_ids: set[int]) -> list[ThisWeekM
 
         if movie.status != "released" or not is_real_theatrical_release(movie):
             continue
+        candidates.append(movie)
 
+    # ingest_weekly_gross_from_boxofficemojo now periodically re-checks a still-playing movie's
+    # latest week instead of caching it forever (see its docstring) - which means most of these
+    # ~20 now-playing movies can be genuinely stale at once (everything cached under the old
+    # "once ever" rule). Doing that scrape concurrently and capped, same as the Studios fix,
+    # avoids repeating the exact request-timeout incident that fix was for.
+    def _refresh(session: Session, movie_id: int) -> None:
+        fresh = session.query(Movie).filter(Movie.id == movie_id).one_or_none()
+        if fresh is not None:
+            ingest_weekly_gross_from_boxofficemojo(session, fresh)
+
+    run_with_isolated_sessions([movie.id for movie in candidates], _refresh, max_items=MAX_ITEMS_PER_REQUEST)
+
+    entries: list[ThisWeekMovie] = []
+    for movie in candidates:
         observations = ingest_weekly_gross_from_boxofficemojo(db, movie)
         if not observations:
             continue
