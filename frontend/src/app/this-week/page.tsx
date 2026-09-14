@@ -4,6 +4,12 @@ import IndustryHealthChart from "@/components/IndustryHealthChart";
 import { getHolidayContext, getIndustryHealth, getPredictionHistory, getThisWeek } from "@/lib/api";
 import { HolidayHighlight, IndustryHealthComparison, PredictionHistory } from "@/lib/types";
 
+// The backend's /this-week endpoint periodically re-checks Box Office Mojo for holdovers still
+// in theaters (see ingest_weekly_gross_from_boxofficemojo's staleness check) and can trigger a
+// same-request daily buzz-signal call for every movie whose tracked week just advanced - same
+// class of slow-cold-cache request that needed this on the Studios page.
+export const maxDuration = 60;
+
 export default async function ThisWeekPage() {
   const movies = await getThisWeek();
   const histories = await Promise.all(
