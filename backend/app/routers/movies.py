@@ -171,7 +171,7 @@ def _holdover_entries(db: Session, exclude_tmdb_ids: set[int]) -> list[ThisWeekM
 
     run_with_isolated_sessions([movie.id for movie in candidates], _refresh, max_items=MAX_ITEMS_PER_REQUEST)
 
-    entries: list[ThisWeekMovie] = []
+    prepared: list[tuple[Movie, list[WeeklyGrossObservation], WeeklyGrossObservation, int]] = []
     for movie in candidates:
         observations = ingest_weekly_gross_from_boxofficemojo(db, movie)
         if not observations:
@@ -179,8 +179,21 @@ def _holdover_entries(db: Session, exclude_tmdb_ids: set[int]) -> list[ThisWeekM
         latest = max(observations, key=lambda o: o.week_number)
         if latest.weekend_gross_usd is None:
             continue
-
         target_week = latest.week_number + 1
+        prepared.append((movie, observations, latest, target_week))
+
+    # Once the BOM refresh above lands a real new weekend, get_or_record_snapshot needs a
+    # first-time snapshot for that movie's new target_week - which means a live Claude +
+    # web_search call (apply_news_adjustment), same slow-cold-cache shape as the BOM scrape
+    # itself. Parallelize it the same way rather than awaiting each Claude call in turn - a
+    # snapshot already recorded today for a movie is still cheap (an isolated session's first
+    # query short-circuits before touching Claude at all).
+    predicted_by_movie: dict[int, float | None] = {}
+
+    _SnapshotItem = tuple[Movie, list[WeeklyGrossObservation], WeeklyGrossObservation, int]
+
+    def _snapshot(session: Session, item: _SnapshotItem) -> None:
+        movie, _observations, latest, target_week = item
 
         def _compute_holdover_prediction(m=movie, tw=target_week, pg=latest.weekend_gross_usd):
             base = predict_next_weekend_gross(
@@ -188,13 +201,23 @@ def _holdover_entries(db: Session, exclude_tmdb_ids: set[int]) -> list[ThisWeekM
             )
             return apply_news_adjustment(base, m.title)
 
-        predicted = get_or_record_snapshot(
-            db,
+        predicted_by_movie[movie.id] = get_or_record_snapshot(
+            session,
             movie_id=movie.id,
             week_number=target_week,
             is_new_release=False,
             compute_prediction=_compute_holdover_prediction,
         )
+
+    # No max_items cap here (unlike the BOM refresh above): capping would skip even the cheap
+    # already-cached-today lookup for whichever candidates missed the cutoff, silently dropping
+    # their predicted gross from the response. The BOM refresh's own cap already bounds how many
+    # movies can need a genuinely new (Claude-calling) snapshot in one request; everything else
+    # in `prepared` resolves to an existing row almost immediately.
+    run_with_isolated_sessions(prepared, _snapshot)
+
+    entries: list[ThisWeekMovie] = []
+    for movie, observations, latest, target_week in prepared:
         # in case this weekend's real number has already landed by the time this runs
         actual_row = next((o for o in observations if o.week_number == target_week), None)
 
@@ -206,7 +229,7 @@ def _holdover_entries(db: Session, exclude_tmdb_ids: set[int]) -> list[ThisWeekM
                 poster_path=movie.poster_path,
                 is_new_release=False,
                 week_number=target_week,
-                predicted_weekend_gross_usd=predicted,
+                predicted_weekend_gross_usd=predicted_by_movie.get(movie.id),
                 actual_weekend_gross_usd=actual_row.weekend_gross_usd if actual_row else None,
                 previous_weekend_gross_usd=latest.weekend_gross_usd,
             )
