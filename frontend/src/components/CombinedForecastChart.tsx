@@ -36,10 +36,14 @@ function dayLabel(dateStr: string): string {
 }
 
 function formatUpdatedAt(iso: string): string {
+  // Deliberately never compares against the current clock (e.g. "is this today?") - this page
+  // is server-rendered and cached (ISR), so "now" at render time can differ from "now" at
+  // client hydration time, and a branch that depends on it causes a real React hydration
+  // mismatch (seen live in production). An absolute stamp is stable either way.
   const d = new Date(iso);
   const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-  if (d.toDateString() === new Date().toDateString()) return `Updated today at ${time}`;
-  return `Updated ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} at ${time}`;
+  const day = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `Updated ${day} at ${time}`;
 }
 
 function movieKey(tmdbId: number): string {
